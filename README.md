@@ -39,7 +39,7 @@ Follow these steps to install the `affordance_util` and `cc_affordance_planner` 
 3. Build and install the `cc_affordance_planner` package.
 
    ```bash
-   cd ~/temp_cca_ws/closed_chain_affordance/cc_affordance_planner && cmake .. -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DCMAKE_BUILD_TYPE=Release && cmake --build . && sudo cmake --install .
+   cd ~/temp_cca_ws/closed_chain_affordance/cc_affordance_planner && mkdir build && cd build && cmake .. -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DCMAKE_BUILD_TYPE=Release && cmake --build . && sudo cmake --install .
    ```
 
 4. Remove the temporary directory along with this repo clone since we don't need them anymore:
