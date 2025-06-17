@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.12)
 project(cc_affordance_planner)
 
 # Specify C++ standard
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Set library output path
@@ -43,12 +43,6 @@ install(TARGETS ${PROJECT_NAME}
 install(FILES include/${PROJECT_NAME}/${PROJECT_NAME}.hpp
               include/${PROJECT_NAME}/${PROJECT_NAME}_interface.hpp
         DESTINATION include/${PROJECT_NAME}
-)
-
-# Install jthread headers
-install(DIRECTORY include/jthread
-        DESTINATION include
-        FILES_MATCHING PATTERN "*.hpp"
 )
 
 # Generate and install CMake package configuration files. The following steps enable finding this library with the find_package call in downstream packages

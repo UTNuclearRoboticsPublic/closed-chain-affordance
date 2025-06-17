@@ -33,11 +33,11 @@
 #ifndef CC_AFFORDANCE_PLANNER_INTERFACE
 #define CC_AFFORDANCE_PLANNER_INTERFACE
 
-#include "jthread/jthread.hpp"
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 #include <affordance_util/affordance_util.hpp>
 #include <cc_affordance_planner/cc_affordance_planner.hpp>
+#include <thread>
 #include <condition_variable>
 #include <mutex>
 
