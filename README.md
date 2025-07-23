@@ -78,7 +78,7 @@ This section describes the required and optional code setup for this planner.
 Using the planner is straightforward and requires just instantiating the planner interface object and calling a method on it by passing robot and task descriptions. Follow these 5 steps:
 1. Include these headers:
 ```cpp
-#include <affordance_util_ros/affordance_util_ros.hpp>
+#include <affordance_util/affordance_util.hpp>
 #include <cc_affordance_planner/cc_affordance_planner.hpp>
 #include <cc_affordance_planner/cc_affordance_planner_interface.hpp>
 ```
