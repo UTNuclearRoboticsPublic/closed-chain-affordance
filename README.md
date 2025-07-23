@@ -9,7 +9,10 @@ Many common manipulation tasks can be approached this way. The **Closed-Chain Af
 - **Control or free the end-effector (EE) orientation** along the task path
 - **Adjust the EE orientation while keeping its position fixed**, useful for tasks like reconfiguration, aligning objects, etc.
 
-This repository contains two C++ packages, `affordance_util` and `cc_affordance_planner`, which together form a standalone library framework for CCA. It utilizes the closed-chain affordance model described in the paper referenced at `<paper_reference>`. A demonstration video showcasing simulation and real-world tasks is available [here](https://www.youtube.com/watch?v=Ukv93hbNrOM).
+This repository contains two C++ packages, `affordance_util` and `cc_affordance_planner`, which together form a standalone library framework for CCA. It utilizes the closed-chain affordance model described in the following IEEE Transactions on Robotics (T-RO) paper. A demonstration video showcasing simulation and real-world tasks is available [here](https://www.youtube.com/watch?v=Ukv93hbNrOM).
+
+## Paper Reference
+- Panthi, Janak, Farshid Alambeigi, and Mitch Pryor. "A Closed-Chain Approach to Generating Affordance Joint Trajectories for Robotic Manipulators." IEEE Transactions on Robotics (2025). [Link](https://ieeexplore.ieee.org/abstract/document/11049010)
 
 ## Notable Dependencies
 1. `C++20`
