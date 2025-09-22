@@ -399,13 +399,26 @@ RobotConfig robot_builder(const std::string &config_file_path)
 
     return robotConfig;
 }
-RobotConfig robot_builder(const std::string &urdf_file_path, const std::string &ref_frame_name,
-                          const std::string &base_joint_name, const std::string &ee_frame_name,
-                          const Eigen::Vector3d &tool_location)
+RobotConfig robot_builder(const std::string &urdf_string, const RobotConfig& robotConfig)
 {
-    RobotConfig robot_config; // Output of the function
 
-    const urdf::ModelInterfaceSharedPtr model = urdf::parseURDFFile(urdf_file_path);
+    // Extract necessary info from robotConfig
+    // Reference frame name
+    const std::string &ref_frame_name = robotConfig.frame_names.ref;
+
+    // Base joint name
+    const std::string &base_joint_name = robotConfig.joint_names.robot[0];
+
+    // EE frame name
+    const std::string &ee_frame_name = robotConfig.frame_names.ee;
+
+    // Tool info
+    const std::string& tool_frame_name = robotConfig.frame_names.tool;
+    const Eigen::Vector3d& tool_location = robotConfig.ee_to_tool_offset;
+
+    const urdf::ModelInterfaceSharedPtr model = urdf::parseURDF(urdf_string);
+
+    RobotConfig robot_config; // Output of the function
     if (!model)
     {
         throw std::runtime_error("Robot screw list cannot be built without a valid robot config URDF file");
@@ -490,8 +503,6 @@ RobotConfig robot_builder(const std::string &urdf_file_path, const std::string &
         }
     }
 
-    // Access the tool info
-    const std::string &tool_frame_name = ee_frame_name;
 
     // Compute screw axes
     const size_t screw_size = 6;
@@ -513,17 +524,11 @@ RobotConfig robot_builder(const std::string &urdf_file_path, const std::string &
 
     Eigen::Matrix4d M;
 
-    // TODO: Deduce orientation of the tool or end effector from the URDF
-    if (tool_location.hasNaN())
-    {
-        // At this point, the last joint transform in the chain list must be the end effector joint
-        M = joint_pose_in_ref_frame;
-    }
-    else
-    {
-        M = Eigen::Matrix4d::Identity();
-        M.block<3, 1>(0, 3) = tool_location;
-    }
+    // Deduce tool HTM
+    M = joint_pose_in_ref_frame;
+    Eigen::Matrix4d T_ee_to_tool =  Eigen::Matrix4d::Identity();
+    T_ee_to_tool.block<3, 1>(0, 3) = tool_location;
+    M = M * T_ee_to_tool;
 
     robot_config.M = M;
 
@@ -534,6 +539,54 @@ RobotConfig robot_builder(const std::string &urdf_file_path, const std::string &
     robot_config.frame_names.tool = tool_frame_name;
 
     return robot_config;
+}
+RobotConfig extract_info_for_urdf_robot_builder(const std::string &config_file_path)
+{
+
+    RobotConfig robotConfig; // Output of the function
+
+    // Load the YAML file
+    const YAML::Node config = YAML::LoadFile(config_file_path);
+    if (!config)
+    {
+        throw std::runtime_error("Unable to extract info for urdf robot_builder due to invalid yaml file");
+    }
+
+    // Access the reference frame info
+    const YAML::Node &refFrameNode = config["ref_frame"];
+    const std::string &ref_frame_name = refFrameNode[0]["name"].as<std::string>(); // access with [0] since only
+                                                                                   // one reference frame
+
+    // Parse base joint name
+    const YAML::Node &robotJointsNode = config["robot_joints"];
+    const YAML::Node &baseJointNode = robotJointsNode[0];
+    const std::string &base_joint_name = baseJointNode["name"].as<std::string>();
+
+
+    // Access EE info
+    const YAML::Node &ee_node = config["end_effector"];
+    const std::string ee_frame_name = ee_node[0]["frame_name"].as<std::string>();
+
+    // Access tool info
+    const YAML::Node &tool_node = config["tool"];
+    const std::string tool_frame_name = tool_node[0]["name"].as<std::string>();
+    const Eigen::Vector3d tool_offset = tool_node[0]["offset_from_ee_frame"].as<Eigen::Vector3d>();
+   
+
+    // Reference frame name
+    robotConfig.frame_names.ref = ref_frame_name;
+
+    // Base joint name
+    robotConfig.joint_names.robot.push_back(base_joint_name);
+
+    // EE frame name
+    robotConfig.frame_names.ee = ee_frame_name;
+
+    // Tool info
+    robotConfig.frame_names.tool = tool_frame_name;
+    robotConfig.ee_to_tool_offset = tool_offset;
+
+    return robotConfig;
 }
 Eigen::MatrixXd Adjoint(const Eigen::Matrix4d &htm)
 {
