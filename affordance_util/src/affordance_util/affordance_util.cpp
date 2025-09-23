@@ -402,24 +402,28 @@ RobotConfig robot_builder(const std::string &config_file_path)
 RobotConfig robot_builder(const std::string &urdf_string, const RobotConfig& robotConfig)
 {
 
-    // Extract necessary info from robotConfig
+    RobotConfig robot_config = robotConfig; // Output of the function. The output has the same values except for the following three fields. 
+    robot_config.joint_names.robot.clear();
+    robot_config.Slist.setConstant(std::numeric_limits<double>::quiet_NaN());
+    robot_config.M.setConstant(std::numeric_limits<double>::quiet_NaN());
+
+
+    // Extract necessary info from robotConfig for readability
     // Reference frame name
     const std::string &ref_frame_name = robotConfig.frame_names.ref;
 
     // Base joint name
     const std::string &base_joint_name = robotConfig.joint_names.robot[0];
 
-    // EE frame name
+    // EE info
     const std::string &ee_frame_name = robotConfig.frame_names.ee;
 
     // Tool info
-    const std::string& tool_frame_name = robotConfig.frame_names.tool;
     const Eigen::Vector3d& tool_location = robotConfig.ee_to_tool_offset;
 
     const urdf::ModelInterfaceSharedPtr model = urdf::parseURDF(urdf_string);
 
-    RobotConfig robot_config; // Output of the function
-    if (!model)
+        if (!model)
     {
         throw std::runtime_error("Robot screw list cannot be built without a valid robot config URDF file");
     }
@@ -532,12 +536,6 @@ RobotConfig robot_builder(const std::string &urdf_string, const RobotConfig& rob
 
     robot_config.M = M;
 
-    // Reference frame name
-    robot_config.frame_names.ref = ref_frame_name;
-
-    // Tool name
-    robot_config.frame_names.tool = tool_frame_name;
-
     return robot_config;
 }
 RobotConfig extract_info_for_urdf_robot_builder(const std::string &config_file_path)
@@ -565,6 +563,7 @@ RobotConfig extract_info_for_urdf_robot_builder(const std::string &config_file_p
 
     // Access EE info
     const YAML::Node &ee_node = config["end_effector"];
+    const std::string gripper_joint_name = ee_node[0]["gripper_joint_name"].as<std::string>();
     const std::string ee_frame_name = ee_node[0]["frame_name"].as<std::string>();
 
     // Access tool info
@@ -580,6 +579,7 @@ RobotConfig extract_info_for_urdf_robot_builder(const std::string &config_file_p
     robotConfig.joint_names.robot.push_back(base_joint_name);
 
     // EE frame name
+    robotConfig.joint_names.gripper = gripper_joint_name;
     robotConfig.frame_names.ee = ee_frame_name;
 
     // Tool info
