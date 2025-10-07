@@ -868,4 +868,41 @@ bool NearZero(const double &near)
     const double nearZeroTol_ = 1e-6;
     return std::abs(near) < nearZeroTol_;
 }
+
+std::vector<Eigen::Matrix4d> compute_se3_screw_trajectory(const ScrewInfo& si, double theta_total, int trajectory_density, const Eigen::Matrix4d& T_start)
+{
+  std::vector<Eigen::Matrix4d> T_path;  // Output discretized SE(3) path
+
+  // Extract the screw axis S (6x1 twist) from screw info
+  const Eigen::VectorXd S = affordance_util::get_screw(si);
+
+  // Compute step size in screw parameter
+  const double dtheta = theta_total / (trajectory_density - 1);
+
+  // Incremental twist vector Δξθ = S * Δθ
+  const Eigen::VectorXd S_theta_delta = S * dtheta;
+
+  // Convert twist vector to se(3) matrix form
+  const Eigen::Matrix4d se3_mat = affordance_util::VecTose3(S_theta_delta);
+
+  // Compute the homogeneous transform for one incremental step
+  const Eigen::Matrix4d T_delta = affordance_util::MatrixExp6(se3_mat);
+
+  // Initialize trajectory
+  T_path.reserve(trajectory_density);
+  T_path.push_back(T_start);
+
+  Eigen::Matrix4d T_last = T_start;
+
+  for (int i = 1; i < trajectory_density; ++i)
+  {
+    // Advance along the screw by Δθ each iteration
+    const Eigen::Matrix4d T_current = T_delta * T_last;
+    T_path.push_back(T_current);
+    T_last = T_current;
+  }
+
+  return T_path;
+}
+
 } // namespace affordance_util

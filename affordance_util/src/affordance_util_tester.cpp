@@ -346,5 +346,31 @@ int main()
     }
     std::cout << std::endl;
 
+    {
+    	std::cout << "\nTesting compute_se3_screw_trajectory " << std::endl;
+    	// Define a simple screw: translation along the z-axis 
+    	affordance_util::ScrewInfo si;
+	si.type = affordance_util::ScrewType::TRANSLATION;
+    	si.axis = Eigen::Vector3d(0, 0, 1);              // unit axis along z
+    	si.location  = Eigen::Vector3d(0, 0, 0);              // passes through origin
+
+    	// Motion parameters
+    	double theta_total = 0.5;   // half a meter
+    	int trajectory_density = 5;
+
+    	// Start pose at identity
+    	Eigen::Matrix4d T_start = Eigen::Matrix4d::Identity();
+
+    	// Compute discretized SE(3) trajectory
+    	const std::vector<Eigen::Matrix4d> T_traj =
+    	    affordance_util::compute_se3_screw_trajectory(si, theta_total, trajectory_density, T_start);
+
+    	// Print the resulting transforms
+    	for (size_t i = 0; i < T_traj.size(); ++i)
+    	{
+    	  std::cout << "T[" << i << "] =\n" << T_traj[i] << "\n\n";
+    	}
+    }
+
     return 0;
 }

@@ -544,6 +544,24 @@ Eigen::Matrix<double, 6, 1> get_screw(const Eigen::Vector3d &w, const Eigen::Vec
  */
 bool NearZero(const double &near);
 
+/**
+ * @brief Generates a discretized SE(3) trajectory along a screw motion.
+ *
+ * Computes a sequence of homogeneous transforms along the screw defined by
+ * the screw axis in @p si and total displacement @p theta_total. The screw
+ * path is sampled uniformly according to @p trajectory_density and starts
+ * from @p T_start.
+ *
+ * @param[in] si Screw parameters defining the screw axis.
+ * @param[in] theta_total Total screw displacement (radians or meters).
+ * @param[in] trajectory_density Number of trajectory samples (≥ 2).
+ * @param[in] T_start Starting pose in SE(3).
+ *
+ * @return Discretized screw path as a vector of 4×4 transforms.
+ */
+
+std::vector<Eigen::Matrix4d> compute_se3_screw_trajectory(const ScrewInfo &si, double theta_total, int trajectory_density, const Eigen::Matrix4d& T_start);
+
 }; // namespace affordance_util
 
 #endif // AFFORDANCE_UTIL
