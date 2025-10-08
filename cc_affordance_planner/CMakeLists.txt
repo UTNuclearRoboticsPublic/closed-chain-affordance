@@ -20,6 +20,7 @@ find_package(affordance_util REQUIRED)
 add_library(${PROJECT_NAME} STATIC
     src/${PROJECT_NAME}/${PROJECT_NAME}.cpp
     src/${PROJECT_NAME}/${PROJECT_NAME}_interface.cpp
+    src/${PROJECT_NAME}/${PROJECT_NAME}_util.cpp
 )
 
 # Link this package's library against affordance_util and pthread
@@ -42,6 +43,7 @@ install(TARGETS ${PROJECT_NAME}
 # Install the header files
 install(FILES include/${PROJECT_NAME}/${PROJECT_NAME}.hpp
               include/${PROJECT_NAME}/${PROJECT_NAME}_interface.hpp
+              include/${PROJECT_NAME}/${PROJECT_NAME}_util.hpp
         DESTINATION include/${PROJECT_NAME}
 )
 
