@@ -45,6 +45,15 @@ namespace cc_affordance_planner
 {
 
 /**
+* @brief Enum describing common ee orientation constraints
+*/
+enum class EeOrientationConstraint 
+{
+    PRESERVE,
+    DEFAULT
+};
+
+/**
  * @brief Enum describing various planning types that the closed-chain affordance planner offers
  */
 enum class PlanningType
@@ -89,6 +98,7 @@ struct TaskDescription
     MotionType motion_type = MotionType::AFFORDANCE;
     affordance_util::VirtualScrewOrder vir_screw_order = affordance_util::VirtualScrewOrder::XYZ;
     affordance_util::GripperGoalType gripper_goal_type = affordance_util::GripperGoalType::CONSTANT;
+    EeOrientationConstraint ee_orientation_constraint = EeOrientationConstraint::DEFAULT;
 
     /**
      * @brief Given a planning type, constructs a cca task description with necessary parameters. This constructor is
