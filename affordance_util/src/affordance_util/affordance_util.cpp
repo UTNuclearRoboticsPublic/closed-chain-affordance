@@ -399,14 +399,31 @@ RobotConfig robot_builder(const std::string &config_file_path)
 
     return robotConfig;
 }
-RobotConfig robot_builder(const std::string &urdf_file_path, const std::string &ref_frame_name,
-                          const std::string &base_joint_name, const std::string &ee_frame_name,
-                          const Eigen::Vector3d &tool_location)
+RobotConfig robot_builder(const std::string &urdf_string, const RobotConfig& robotConfig)
 {
-    RobotConfig robot_config; // Output of the function
 
-    const urdf::ModelInterfaceSharedPtr model = urdf::parseURDFFile(urdf_file_path);
-    if (!model)
+    RobotConfig robot_config = robotConfig; // Output of the function. The output has the same values except for the following three fields. 
+    robot_config.joint_names.robot.clear();
+    robot_config.Slist.setConstant(std::numeric_limits<double>::quiet_NaN());
+    robot_config.M.setConstant(std::numeric_limits<double>::quiet_NaN());
+
+
+    // Extract necessary info from robotConfig for readability
+    // Reference frame name
+    const std::string &ref_frame_name = robotConfig.frame_names.ref;
+
+    // Base joint name
+    const std::string &base_joint_name = robotConfig.joint_names.robot[0];
+
+    // EE info
+    const std::string &ee_frame_name = robotConfig.frame_names.ee;
+
+    // Tool info
+    const Eigen::Vector3d& tool_location = robotConfig.ee_to_tool_offset;
+
+    const urdf::ModelInterfaceSharedPtr model = urdf::parseURDF(urdf_string);
+
+        if (!model)
     {
         throw std::runtime_error("Robot screw list cannot be built without a valid robot config URDF file");
     }
@@ -490,8 +507,6 @@ RobotConfig robot_builder(const std::string &urdf_file_path, const std::string &
         }
     }
 
-    // Access the tool info
-    const std::string &tool_frame_name = ee_frame_name;
 
     // Compute screw axes
     const size_t screw_size = 6;
@@ -513,27 +528,65 @@ RobotConfig robot_builder(const std::string &urdf_file_path, const std::string &
 
     Eigen::Matrix4d M;
 
-    // TODO: Deduce orientation of the tool or end effector from the URDF
-    if (tool_location.hasNaN())
-    {
-        // At this point, the last joint transform in the chain list must be the end effector joint
-        M = joint_pose_in_ref_frame;
-    }
-    else
-    {
-        M = Eigen::Matrix4d::Identity();
-        M.block<3, 1>(0, 3) = tool_location;
-    }
+    // Deduce tool HTM
+    M = joint_pose_in_ref_frame;
+    Eigen::Matrix4d T_ee_to_tool =  Eigen::Matrix4d::Identity();
+    T_ee_to_tool.block<3, 1>(0, 3) = tool_location;
+    M = M * T_ee_to_tool;
 
     robot_config.M = M;
 
-    // Reference frame name
-    robot_config.frame_names.ref = ref_frame_name;
-
-    // Tool name
-    robot_config.frame_names.tool = tool_frame_name;
-
     return robot_config;
+}
+RobotConfig extract_info_for_urdf_robot_builder(const std::string &config_file_path)
+{
+
+    RobotConfig robotConfig; // Output of the function
+
+    // Load the YAML file
+    const YAML::Node config = YAML::LoadFile(config_file_path);
+    if (!config)
+    {
+        throw std::runtime_error("Unable to extract info for urdf robot_builder due to invalid yaml file");
+    }
+
+    // Access the reference frame info
+    const YAML::Node &refFrameNode = config["ref_frame"];
+    const std::string &ref_frame_name = refFrameNode[0]["name"].as<std::string>(); // access with [0] since only
+                                                                                   // one reference frame
+
+    // Parse base joint name
+    const YAML::Node &robotJointsNode = config["robot_joints"];
+    const YAML::Node &baseJointNode = robotJointsNode[0];
+    const std::string &base_joint_name = baseJointNode["name"].as<std::string>();
+
+
+    // Access EE info
+    const YAML::Node &ee_node = config["end_effector"];
+    const std::string gripper_joint_name = ee_node[0]["gripper_joint_name"].as<std::string>();
+    const std::string ee_frame_name = ee_node[0]["frame_name"].as<std::string>();
+
+    // Access tool info
+    const YAML::Node &tool_node = config["tool"];
+    const std::string tool_frame_name = tool_node[0]["name"].as<std::string>();
+    const Eigen::Vector3d tool_offset = tool_node[0]["offset_from_ee_frame"].as<Eigen::Vector3d>();
+   
+
+    // Reference frame name
+    robotConfig.frame_names.ref = ref_frame_name;
+
+    // Base joint name
+    robotConfig.joint_names.robot.push_back(base_joint_name);
+
+    // EE frame name
+    robotConfig.joint_names.gripper = gripper_joint_name;
+    robotConfig.frame_names.ee = ee_frame_name;
+
+    // Tool info
+    robotConfig.frame_names.tool = tool_frame_name;
+    robotConfig.ee_to_tool_offset = tool_offset;
+
+    return robotConfig;
 }
 Eigen::MatrixXd Adjoint(const Eigen::Matrix4d &htm)
 {
@@ -815,4 +868,41 @@ bool NearZero(const double &near)
     const double nearZeroTol_ = 1e-6;
     return std::abs(near) < nearZeroTol_;
 }
+
+std::vector<Eigen::Matrix4d> compute_se3_screw_trajectory(const ScrewInfo& si, double theta_total, int trajectory_density, const Eigen::Matrix4d& T_start)
+{
+  std::vector<Eigen::Matrix4d> T_path;  // Output discretized SE(3) path
+
+  // Extract the screw axis S (6x1 twist) from screw info
+  const Eigen::VectorXd S = affordance_util::get_screw(si);
+
+  // Compute step size in screw parameter
+  const double dtheta = theta_total / (trajectory_density - 1);
+
+  // Incremental twist vector Δξθ = S * Δθ
+  const Eigen::VectorXd S_theta_delta = S * dtheta;
+
+  // Convert twist vector to se(3) matrix form
+  const Eigen::Matrix4d se3_mat = affordance_util::VecTose3(S_theta_delta);
+
+  // Compute the homogeneous transform for one incremental step
+  const Eigen::Matrix4d T_delta = affordance_util::MatrixExp6(se3_mat);
+
+  // Initialize trajectory
+  T_path.reserve(trajectory_density);
+  T_path.push_back(T_start);
+
+  Eigen::Matrix4d T_last = T_start;
+
+  for (int i = 1; i < trajectory_density; ++i)
+  {
+    // Advance along the screw by Δθ each iteration
+    const Eigen::Matrix4d T_current = T_delta * T_last;
+    T_path.push_back(T_current);
+    T_last = T_current;
+  }
+
+  return T_path;
+}
+
 } // namespace affordance_util

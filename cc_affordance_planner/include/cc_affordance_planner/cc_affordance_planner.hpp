@@ -33,13 +33,13 @@
 #ifndef CC_AFFORDANCE_PLANNER
 #define CC_AFFORDANCE_PLANNER
 
-#include "jthread/jthread.hpp"
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 #include <affordance_util/affordance_util.hpp>
 #include <chrono>
 #include <optional>
 #include <vector>
+#include <thread>
 
 namespace cc_affordance_planner
 {

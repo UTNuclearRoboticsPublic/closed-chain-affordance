@@ -33,16 +33,25 @@
 #ifndef CC_AFFORDANCE_PLANNER_INTERFACE
 #define CC_AFFORDANCE_PLANNER_INTERFACE
 
-#include "jthread/jthread.hpp"
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 #include <affordance_util/affordance_util.hpp>
 #include <cc_affordance_planner/cc_affordance_planner.hpp>
+#include <thread>
 #include <condition_variable>
 #include <mutex>
 
 namespace cc_affordance_planner
 {
+
+/**
+* @brief Enum describing common ee orientation constraints
+*/
+enum class EeOrientationConstraint 
+{
+    PRESERVE,
+    DEFAULT
+};
 
 /**
  * @brief Enum describing various planning types that the closed-chain affordance planner offers
@@ -89,6 +98,7 @@ struct TaskDescription
     MotionType motion_type = MotionType::AFFORDANCE;
     affordance_util::VirtualScrewOrder vir_screw_order = affordance_util::VirtualScrewOrder::XYZ;
     affordance_util::GripperGoalType gripper_goal_type = affordance_util::GripperGoalType::CONSTANT;
+    EeOrientationConstraint ee_orientation_constraint = EeOrientationConstraint::DEFAULT;
 
     /**
      * @brief Given a planning type, constructs a cca task description with necessary parameters. This constructor is

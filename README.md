@@ -9,12 +9,15 @@ Many common manipulation tasks can be approached this way. The **Closed-Chain Af
 - **Control or free the end-effector (EE) orientation** along the task path
 - **Adjust the EE orientation while keeping its position fixed**, useful for tasks like reconfiguration, aligning objects, etc.
 
-This repository contains two C++ packages, `affordance_util` and `cc_affordance_planner`, which together form a standalone library framework for CCA. It utilizes the closed-chain affordance model described in the paper referenced at `<paper_reference>`. A demonstration video showcasing simulation and real-world tasks is available [here](https://www.youtube.com/watch?v=Ukv93hbNrOM).
+This repository contains two C++ packages, `affordance_util` and `cc_affordance_planner`, which together form a standalone library framework for CCA. It utilizes the closed-chain affordance model described in the following IEEE Transactions on Robotics (T-RO) paper. A demonstration video showcasing simulation and real-world tasks is available [here](https://www.youtube.com/watch?v=Ukv93hbNrOM).
+
+## Paper Reference
+- Panthi, Janak, Farshid Alambeigi, and Mitch Pryor. "A Closed-Chain Approach to Generating Affordance Joint Trajectories for Robotic Manipulators." IEEE Transactions on Robotics (2025). [Link](https://ieeexplore.ieee.org/abstract/document/11049010)
 
 ## Notable Dependencies
-
-1. `urdfdom`
+1. `C++20`
 2. `eigen3`
+3. `urdfdom`
 
 Install with `sudo apt install liburdfdom-dev libeigen3-dev`
 
@@ -75,7 +78,7 @@ This section describes the required and optional code setup for this planner.
 Using the planner is straightforward and requires just instantiating the planner interface object and calling a method on it by passing robot and task descriptions. Follow these 5 steps:
 1. Include these headers:
 ```cpp
-#include <affordance_util_ros/affordance_util_ros.hpp>
+#include <affordance_util/affordance_util.hpp>
 #include <cc_affordance_planner/cc_affordance_planner.hpp>
 #include <cc_affordance_planner/cc_affordance_planner_interface.hpp>
 ```

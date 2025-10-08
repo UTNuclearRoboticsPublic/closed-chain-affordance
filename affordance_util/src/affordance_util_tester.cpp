@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <iomanip> // for std::precision
 #include <iostream>
+#include <fstream> // To read files
 
 int main()
 {
@@ -104,15 +105,14 @@ int main()
     // Get path to test directory where robot test files are
     const std::filesystem::path current_file_path(__FILE__);
     const std::filesystem::path project_root = current_file_path.parent_path();
-    std::filesystem::path yaml_path = project_root / "test" / "cca_spot_description.yaml";
-    std::string filepath = yaml_path.string();
+    std::filesystem::path spot_yaml_path = project_root / "test" / "cca_spot_description.yaml";
     RobotConfig spot_yaml_robot_config;
     Eigen::MatrixXd spot_yaml_slist;
     Eigen::MatrixXd spot_yaml_m_out;
     try
     {
-        spot_yaml_robot_config = robot_builder(filepath);
-        std::cout << "Input filepath: \n" << filepath << std::endl;
+        spot_yaml_robot_config = robot_builder(spot_yaml_path.string());
+        std::cout << "Input filepath: \n" <<spot_yaml_path.string()<< std::endl;
         spot_yaml_slist = spot_yaml_robot_config.Slist;
         spot_yaml_m_out = spot_yaml_robot_config.M;
         std::cout << "Output Slist: \n" << spot_yaml_slist << std::endl;
@@ -131,20 +131,27 @@ int main()
     {
         std::cerr << "***Error building robot: " << e.what() << std::endl;
     }
-    std::filesystem::path urdf_path = project_root / "test" / "spot.urdf";
-    filepath = urdf_path.string();
-    std::string ref_frame = "arm0_base_link";
-    std::string base_joint = "arm0_shoulder_yaw";
-    std::string ee_frame = "arm0_fingers";
-    Eigen::Vector3d spot_tool_location(0.9383, 0.0005, 0.0664);
-    std::cout << "\nTesting robot_builder Spot URDF version with tool specification" << std::endl;
+    std::filesystem::path spot_urdf_path = project_root / "test" / "spot.urdf";
+    std::string spot_urdf_string;
+    {
+        std::ifstream file(spot_urdf_path.string());
+        if (!file.is_open()) {
+            throw std::runtime_error("Failed to open Spot URDF file");
+        }
+        std::stringstream buffer;
+        buffer << file.rdbuf();
+        spot_urdf_string = buffer.str();
+    }
+    std::cout << "\nTesting robot_builder Spot URDF version" << std::endl;
     try
     {
-        auto robot_config = robot_builder(filepath, ref_frame, base_joint, ee_frame, spot_tool_location);
-        std::cout << "Input filepath: \n" << filepath << std::endl;
-        std::cout << "Input ref_frame: \n" << ref_frame << std::endl;
-        std::cout << "Input base_joint: \n" << base_joint << std::endl;
-        std::cout << "Input ee_frame: \n" << ee_frame << std::endl;
+	auto spot_urdf_robot_builder_info = extract_info_for_urdf_robot_builder(spot_yaml_path.string());
+        auto robot_config = robot_builder(spot_urdf_string, spot_urdf_robot_builder_info);
+        std::cout << "Input filepath: \n" << spot_urdf_path.string() << std::endl;
+        std::cout << "Input ref_frame: \n" << spot_urdf_robot_builder_info.frame_names.ref << std::endl;
+        std::cout << "Input base_joint: \n" << spot_urdf_robot_builder_info.joint_names.robot[0] << std::endl;
+        std::cout << "Input ee_frame: \n" << spot_urdf_robot_builder_info.frame_names.ee << std::endl;
+        std::cout << "Input ee_to_tool_offset: \n" << spot_urdf_robot_builder_info.ee_to_tool_offset.transpose() << std::endl;
         auto urdf_slist = robot_config.Slist;
         auto urdf_m_out = robot_config.M;
         std::cout << "Output Slist: \n" << urdf_slist << std::endl;
@@ -169,39 +176,7 @@ int main()
         else
         {
 
-            std::cerr << "The URDF and YAML M matrix do not match within " << spot_tolerance << std::endl;
-        }
-    }
-    catch (const std::exception &e)
-    {
-        std::cerr << "Error building robot: " << e.what() << std::endl;
-    }
-
-    std::cout << "\nTesting robot_builder Spot URDF version without tool specification" << std::endl;
-    try
-    {
-        auto robot_config = robot_builder(filepath, ref_frame, base_joint, ee_frame);
-        auto urdf_slist = robot_config.Slist;
-        auto urdf_m_out = robot_config.M;
-        std::cout << "Output M without Tool Location: \n" << urdf_m_out << std::endl;
-        std::cout << "Output ref_frame_name: \n" << robot_config.frame_names.ref << std::endl;
-        std::cout << "Output tool_name: \n" << robot_config.frame_names.tool << std::endl;
-        std::cout << "Output joint_names: ";
-        for (const std::string &joint_name : robot_config.joint_names.robot)
-        {
-            std::cout << joint_name << ",";
-        }
-        std::cout << std::endl;
-        bool slist_equal =
-            spot_yaml_slist.isApprox(urdf_slist, spot_tolerance); // Just compare solution, excluding affordance
-        if (slist_equal)
-        {
-            std::cout << "The URDF and YAML Slist match within " << spot_tolerance << std::endl;
-        }
-        else
-        {
-
-            std::cerr << "The URDF and YAML Slist do not match within " << spot_tolerance << std::endl;
+            std::cerr << "The URDF and YAML M matrix do not match within " << spot_tolerance <<". This may have to do with the urdf EE frame orientation being different from what's assumed in the YAML version."<< std::endl;
         }
     }
     catch (const std::exception &e)
@@ -212,15 +187,14 @@ int main()
     //--------------------------------------------------------------------------------------------------------
     std::cout << "\nTesting robot_builder Kinova YAML version" << std::endl;
 
-    yaml_path = project_root / "test" / "cca_kinova_gen3_7dof_description.yaml";
-    filepath = yaml_path.string();
+    auto kinova_yaml_path = project_root / "test" / "cca_kinova_gen3_7dof_description.yaml";
     RobotConfig kinova_yaml_robot_config;
     Eigen::MatrixXd kinova_yaml_slist;
     Eigen::MatrixXd kinova_yaml_m_out;
     try
     {
-        kinova_yaml_robot_config = robot_builder(filepath);
-        std::cout << "Input filepath: \n" << filepath << std::endl;
+        kinova_yaml_robot_config = robot_builder(kinova_yaml_path.string());
+        std::cout << "Input filepath: \n" <<kinova_yaml_path.string()<< std::endl;
         kinova_yaml_slist = kinova_yaml_robot_config.Slist;
         kinova_yaml_m_out = kinova_yaml_robot_config.M;
         std::cout << "Output Slist: \n" << kinova_yaml_slist << std::endl;
@@ -242,22 +216,29 @@ int main()
     }
 
     // Get urdf filepath
-    urdf_path = project_root / "test" / "kinova_gen3_7dof.urdf";
-    filepath = urdf_path.string();
+    std::filesystem::path kinova_urdf_path = project_root / "test" / "kinova_gen3_7dof.urdf";
+    std::string kinova_urdf_string;
+    {
+        std::ifstream file(kinova_urdf_path.string());
+        if (!file.is_open()) {
+            throw std::runtime_error("Failed to open kinova URDF file");
+        }
+        std::stringstream buffer;
+        buffer << file.rdbuf();
+        kinova_urdf_string = buffer.str();
+    }
 
     // Convert to string for file operations
-    ref_frame = "base_link";
-    base_joint = "joint_1";
-    ee_frame = "end_effector_link";
-    Eigen::Vector3d kinova_tool_location(0, -0.0246, 1.381);
-    std::cout << "\nTesting robot_builder  Kinova URDF version with tool specification" << std::endl;
+    std::cout << "\nTesting robot_builder  Kinova URDF version" << std::endl;
     try
     {
-        auto robot_config = robot_builder(filepath, ref_frame, base_joint, ee_frame, kinova_tool_location);
-        std::cout << "Input filepath: \n" << filepath << std::endl;
-        std::cout << "Input ref_frame: \n" << ref_frame << std::endl;
-        std::cout << "Input base_joint: \n" << base_joint << std::endl;
-        std::cout << "Input ee_frame: \n" << ee_frame << std::endl;
+	auto kinova_urdf_robot_builder_info = extract_info_for_urdf_robot_builder(kinova_yaml_path.string());
+        auto robot_config = robot_builder(kinova_urdf_string, kinova_urdf_robot_builder_info);
+        std::cout << "Input filepath: \n" << kinova_urdf_path.string() << std::endl;
+        std::cout << "Input ref_frame: \n" << kinova_urdf_robot_builder_info.frame_names.ref << std::endl;
+        std::cout << "Input base_joint: \n" << kinova_urdf_robot_builder_info.joint_names.robot[0] << std::endl;
+        std::cout << "Input ee_frame: \n" << kinova_urdf_robot_builder_info.frame_names.ee << std::endl;
+        std::cout << "Input ee_to_tool_offset: \n" << kinova_urdf_robot_builder_info.ee_to_tool_offset.transpose() << std::endl;
         auto urdf_slist = robot_config.Slist;
         auto urdf_m_out = robot_config.M;
         std::cout << "Output Slist: \n" << urdf_slist << std::endl;
@@ -282,38 +263,7 @@ int main()
         else
         {
 
-            std::cerr << "The URDF and YAML M matrix do not match within " << kinova_tolerance << std::endl;
-        }
-    }
-    catch (const std::exception &e)
-    {
-        std::cerr << "Error building robot: " << e.what() << std::endl;
-    }
-    std::cout << "\nTesting robot_builder Kinova URDF version without tool specification" << std::endl;
-    try
-    {
-        auto robot_config = robot_builder(filepath, ref_frame, base_joint, ee_frame);
-        auto urdf_slist = robot_config.Slist;
-        auto urdf_m_out = robot_config.M;
-        std::cout << "Output M without Tool Location: \n" << urdf_m_out << std::endl;
-        std::cout << "Output ref_frame_name: \n" << robot_config.frame_names.ref << std::endl;
-        std::cout << "Output tool_name: \n" << robot_config.frame_names.tool << std::endl;
-        std::cout << "Output joint_names: ";
-        for (const std::string &joint_name : robot_config.joint_names.robot)
-        {
-            std::cout << joint_name << ",";
-        }
-        std::cout << std::endl;
-        bool slist_equal =
-            kinova_yaml_slist.isApprox(urdf_slist, kinova_tolerance); // Just compare solution, excluding affordance
-        if (slist_equal)
-        {
-            std::cout << "The URDF and YAML Slist match within " << kinova_tolerance << std::endl;
-        }
-        else
-        {
-
-            std::cerr << "The URDF and YAML Slist do not match within " << kinova_tolerance << std::endl;
+            std::cerr << "The URDF and YAML M matrix do not match within " << kinova_tolerance << ". This may have to do with the urdf EE frame orientation being different from what's assumed in the YAML version." << std::endl;
         }
     }
     catch (const std::exception &e)
@@ -395,6 +345,32 @@ int main()
         std::cout << point << ",";
     }
     std::cout << std::endl;
+
+    {
+    	std::cout << "\nTesting compute_se3_screw_trajectory " << std::endl;
+    	// Define a simple screw: translation along the z-axis 
+    	affordance_util::ScrewInfo si;
+	si.type = affordance_util::ScrewType::TRANSLATION;
+    	si.axis = Eigen::Vector3d(0, 0, 1);              // unit axis along z
+    	si.location  = Eigen::Vector3d(0, 0, 0);              // passes through origin
+
+    	// Motion parameters
+    	double theta_total = 0.5;   // half a meter
+    	int trajectory_density = 5;
+
+    	// Start pose at identity
+    	Eigen::Matrix4d T_start = Eigen::Matrix4d::Identity();
+
+    	// Compute discretized SE(3) trajectory
+    	const std::vector<Eigen::Matrix4d> T_traj =
+    	    affordance_util::compute_se3_screw_trajectory(si, theta_total, trajectory_density, T_start);
+
+    	// Print the resulting transforms
+    	for (size_t i = 0; i < T_traj.size(); ++i)
+    	{
+    	  std::cout << "T[" << i << "] =\n" << T_traj[i] << "\n\n";
+    	}
+    }
 
     return 0;
 }
