@@ -17,7 +17,7 @@ std::vector<cc_affordance_planner::TaskDescription> get_se3_screw_tasks(const st
     {
       // Compute unit vector and distance between consecutive points
       const Eigen::Vector3d current_position = se3_screw_path[i].block<3, 1>(0, 3);
-      const Eigen::Vector3d delta_vec = current_position - prev_position;
+      const Eigen::Vector3d delta_vec = prev_position - current_position;
       const double distance = delta_vec.norm();
       const Eigen::Vector3d direction = delta_vec.normalized();
 
