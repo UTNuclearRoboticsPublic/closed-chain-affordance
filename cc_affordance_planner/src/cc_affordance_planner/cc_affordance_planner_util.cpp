@@ -2,39 +2,39 @@
 
 namespace cc_affordance_planner {
 
-std::vector<cc_affordance_planner::TaskDescription> get_se3_screw_tasks(const std::vector<Eigen::Matrix4d> &se3_screw_path, bool parameterize_linearly) {
+std::vector<cc_affordance_planner::TaskDescription> get_se3_screw_tasks(const std::vector<Eigen::Matrix4d> &se3_screw_path, bool preserve_orientation) {
   std::vector<cc_affordance_planner::TaskDescription> task_list;  // Output of the function 
   const int segment_density = 2;           // Points per small trajectory segment
 
-  if (parameterize_linearly)
+  if (preserve_orientation)
   {
     // --------------------------------------------------------------------------
-    // Linear parameterization: translation between successive poses
+    // Linear movement between consecutive points while preserving orientation
     // --------------------------------------------------------------------------
-    Eigen::Vector3d prev_position = se3_screw_path.front().block<3, 1>(0, 3);
 
     for (size_t i = 1; i < se3_screw_path.size(); ++i)
     {
-      // Compute unit vector and distance between consecutive points
-      const Eigen::Vector3d current_position = se3_screw_path[i].block<3, 1>(0, 3);
-      const Eigen::Vector3d delta_vec = prev_position - current_position;
-      const double distance = delta_vec.norm();
+      // Compute direction and displacement between consecutive points
+      const Eigen::Vector3d curr_position = se3_screw_path[i].block<3,1>(0,3);
+      const Eigen::Vector3d prev_position = se3_screw_path[i-1].block<3,1>(0,3);
+      const Eigen::Vector3d delta_vec = curr_position - prev_position;
+
       const Eigen::Vector3d direction = delta_vec.normalized();
+      const double displacement = delta_vec.norm();
 
       // Fill out task description
       cc_affordance_planner::TaskDescription task;
       task.trajectory_density = segment_density;
-      task.vir_screw_order = affordance_util::VirtualScrewOrder::NONE;
+      task.vir_screw_order = affordance_util::VirtualScrewOrder::NONE; // Take away EE orientation freedom
 
       task.affordance_info.type = affordance_util::ScrewType::TRANSLATION;
       task.affordance_info.axis = direction;
       task.affordance_info.location = Eigen::Vector3d::Zero();  // Irrelevant for translation
-      task.goal.affordance = distance;
+      task.goal.affordance = displacement;
 
+      // Push to the task list
       task_list.push_back(std::move(task));
 
-      // Update previous position
-      prev_position = current_position;
     }
   }
   else
@@ -67,6 +67,7 @@ std::vector<cc_affordance_planner::TaskDescription> get_se3_screw_tasks(const st
       task.affordance_info.screw = screw;
       task.goal.affordance = theta;
 
+      // Push to the task list
       task_list.push_back(std::move(task));
     }
   }
