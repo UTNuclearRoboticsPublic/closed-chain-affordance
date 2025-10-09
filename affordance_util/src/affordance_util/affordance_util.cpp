@@ -440,21 +440,26 @@ RobotConfig robot_builder(const std::string &urdf_string, const RobotConfig& rob
         throw std::runtime_error("Robot URDF does not contain specified ee frame");
     }
 
-    // Get vector of joints between ee_frame and base_joint
+    // Get vector of joints between ee_frame and base_joint (inclusive)
     std::vector<urdf::JointConstSharedPtr> chain_list;
     const urdf::LinkConstSharedPtr root = model->getRoot();
     urdf::JointConstSharedPtr current_joint = model->getLink(ee_frame_name)->parent_joint;
-
-    while (current_joint->name != base_joint_name)
+    
+    while (current_joint)
     {
-        std::string parent_name = current_joint->parent_link_name;
-        urdf::LinkConstSharedPtr parent_link = model->getLink(parent_name);
-        if (parent_link == root)
-        {
-            throw std::runtime_error("Base joint not found on path from end effector frame");
-        }
-        current_joint = parent_link->parent_joint;
-        chain_list.insert(chain_list.begin(), model->getJoint(current_joint->name));
+      // Insert at beginning (maintains order from base → ee)
+      chain_list.insert(chain_list.begin(), model->getJoint(current_joint->name));
+    
+      // Stop once we’ve included the base joint
+      if (current_joint->name == base_joint_name)
+        break;
+    
+      // Move upward
+      urdf::LinkConstSharedPtr parent_link = model->getLink(current_joint->parent_link_name);
+      if (!parent_link || parent_link == root)
+        throw std::runtime_error("Base joint not found on path from end effector frame");
+    
+      current_joint = parent_link->parent_joint;
     }
 
     // Sets transforms for ref frame and joint pose
@@ -524,15 +529,11 @@ RobotConfig robot_builder(const std::string &urdf_string, const RobotConfig& rob
     // Screw list
     robot_config.Slist = s_list;
 
-    // EE homogenous transformation matrix
-
-    Eigen::Matrix4d M;
-
-    // Deduce tool HTM
-    M = joint_pose_in_ref_frame;
+    // Deduce tool HTM -- 
+    const Eigen::Matrix4d T_ref_to_ee = compute_transform_from_reference_to_link(model, ee_frame_name, ref_frame_name);
     Eigen::Matrix4d T_ee_to_tool =  Eigen::Matrix4d::Identity();
     T_ee_to_tool.block<3, 1>(0, 3) = tool_location;
-    M = M * T_ee_to_tool;
+    const Eigen::Matrix4d M = T_ref_to_ee * T_ee_to_tool;
 
     robot_config.M = M;
 
