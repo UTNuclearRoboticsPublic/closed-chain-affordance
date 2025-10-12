@@ -221,6 +221,14 @@ struct RobotConfig
     JointNames joint_names;            // Joint names
     FrameNames frame_names;            // Frame names
     Eigen::Vector3d ee_to_tool_offset; // Location of the tool from the EE
+
+    struct KinematicChain
+    {
+        std::string base_joint_name; // Name of the base joint
+        std::string end_joint_name; // Name of the end joint
+    };
+
+    KinematicChain kinematic_chain; // Name of the base and end joints that define the kinematic chain 
 };
 
 /**

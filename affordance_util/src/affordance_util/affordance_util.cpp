@@ -230,22 +230,23 @@ Eigen::MatrixXd compose_cc_model_slist(const RobotDescription &robot_description
 
     return slist;
 }
+
 Eigen::Matrix4d convert_urdf_pose_to_matrix(const urdf::Pose &pose)
 {
     Eigen::Matrix4d transform = Eigen::Matrix4d::Identity();
-    Eigen::Matrix3d rotation_matrix;
 
-    // Convert URDF rotation (quaternion) to roll, pitch, yaw
+    // Convert URDF quaternion to roll, pitch, yaw
     double roll, pitch, yaw;
     pose.rotation.getRPY(roll, pitch, yaw);
 
-    // Create rotation matrix from RPY values
-    rotation_matrix =
-        (Eigen::AngleAxisd(roll, Eigen::Vector3d::UnitX()) * Eigen::AngleAxisd(pitch, Eigen::Vector3d::UnitY()) *
-         Eigen::AngleAxisd(yaw, Eigen::Vector3d::UnitZ()))
+    // ✅ URDF convention: R = Rz(yaw) * Ry(pitch) * Rx(roll)
+    Eigen::Matrix3d rotation_matrix =
+        (Eigen::AngleAxisd(yaw, Eigen::Vector3d::UnitZ()) *
+         Eigen::AngleAxisd(pitch, Eigen::Vector3d::UnitY()) *
+         Eigen::AngleAxisd(roll, Eigen::Vector3d::UnitX()))
             .matrix();
 
-    // Set the rotation part of the matrix
+    // Set the rotation part
     transform.block<3, 3>(0, 0) = rotation_matrix;
 
     // Set the translation part
@@ -413,7 +414,10 @@ RobotConfig robot_builder(const std::string &urdf_string, const RobotConfig& rob
     const std::string &ref_frame_name = robotConfig.frame_names.ref;
 
     // Base joint name
-    const std::string &base_joint_name = robotConfig.joint_names.robot[0];
+    const std::string &base_joint_name = robotConfig.kinematic_chain.base_joint_name;
+
+    // End joint name
+    const std::string &end_joint_name = robotConfig.kinematic_chain.end_joint_name;
 
     // EE info
     const std::string &ee_frame_name = robotConfig.frame_names.ee;
@@ -440,15 +444,15 @@ RobotConfig robot_builder(const std::string &urdf_string, const RobotConfig& rob
         throw std::runtime_error("Robot URDF does not contain specified ee frame");
     }
 
-    // Get vector of joints between ee_frame and base_joint (inclusive)
+    // Get the joints in the kinematic chain, i.e. between end_joint and base_joint inclusive
     std::vector<urdf::JointConstSharedPtr> chain_list;
     const urdf::LinkConstSharedPtr root = model->getRoot();
-    urdf::JointConstSharedPtr current_joint = model->getLink(ee_frame_name)->parent_joint;
+    urdf::JointConstSharedPtr current_joint = model->getJoint(end_joint_name);
     
     while (current_joint)
     {
       // Insert at beginning (maintains order from base → ee)
-      chain_list.insert(chain_list.begin(), model->getJoint(current_joint->name));
+      chain_list.insert(chain_list.begin(), current_joint);
     
       // Stop once we’ve included the base joint
       if (current_joint->name == base_joint_name)
@@ -557,15 +561,15 @@ RobotConfig extract_info_for_urdf_robot_builder(const std::string &config_file_p
                                                                                    // one reference frame
 
     // Parse base joint name
-    const YAML::Node &robotJointsNode = config["robot_joints"];
-    const YAML::Node &baseJointNode = robotJointsNode[0];
-    const std::string &base_joint_name = baseJointNode["name"].as<std::string>();
+    const YAML::Node &kinematicChainNode = config["kinematic_chain"];
+    const std::string &base_joint_name = kinematicChainNode[0]["base_joint_name"].as<std::string>();
+    const std::string &end_joint_name = kinematicChainNode[0]["end_joint_name"].as<std::string>();
 
 
     // Access EE info
     const YAML::Node &ee_node = config["end_effector"];
-    const std::string gripper_joint_name = ee_node[0]["gripper_joint_name"].as<std::string>();
     const std::string ee_frame_name = ee_node[0]["frame_name"].as<std::string>();
+    const std::string gripper_joint_name = ee_node[0]["gripper_joint_name"].as<std::string>();
 
     // Access tool info
     const YAML::Node &tool_node = config["tool"];
@@ -576,12 +580,13 @@ RobotConfig extract_info_for_urdf_robot_builder(const std::string &config_file_p
     // Reference frame name
     robotConfig.frame_names.ref = ref_frame_name;
 
-    // Base joint name
-    robotConfig.joint_names.robot.push_back(base_joint_name);
+    // Kinematic chain info
+    robotConfig.kinematic_chain.base_joint_name = base_joint_name;
+    robotConfig.kinematic_chain.end_joint_name = end_joint_name;
 
     // EE frame name
-    robotConfig.joint_names.gripper = gripper_joint_name;
     robotConfig.frame_names.ee = ee_frame_name;
+    robotConfig.joint_names.gripper = gripper_joint_name;
 
     // Tool info
     robotConfig.frame_names.tool = tool_frame_name;

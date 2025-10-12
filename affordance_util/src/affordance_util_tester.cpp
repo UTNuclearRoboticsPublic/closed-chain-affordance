@@ -145,11 +145,13 @@ int main()
     std::cout << "\nTesting robot_builder Spot URDF version" << std::endl;
     try
     {
-	auto spot_urdf_robot_builder_info = extract_info_for_urdf_robot_builder(spot_yaml_path.string());
+        std::filesystem::path spot_urdf_yaml_path = project_root / "test" / "cca_spot_urdf.yaml";
+	auto spot_urdf_robot_builder_info = extract_info_for_urdf_robot_builder(spot_urdf_yaml_path.string());
         auto robot_config = robot_builder(spot_urdf_string, spot_urdf_robot_builder_info);
         std::cout << "Input filepath: \n" << spot_urdf_path.string() << std::endl;
         std::cout << "Input ref_frame: \n" << spot_urdf_robot_builder_info.frame_names.ref << std::endl;
-        std::cout << "Input base_joint: \n" << spot_urdf_robot_builder_info.joint_names.robot[0] << std::endl;
+        std::cout << "Input base_joint: \n" << spot_urdf_robot_builder_info.kinematic_chain.base_joint_name << std::endl;
+        std::cout << "Input end_joint: \n" << spot_urdf_robot_builder_info.kinematic_chain.end_joint_name << std::endl;
         std::cout << "Input ee_frame: \n" << spot_urdf_robot_builder_info.frame_names.ee << std::endl;
         std::cout << "Input ee_to_tool_offset: \n" << spot_urdf_robot_builder_info.ee_to_tool_offset.transpose() << std::endl;
         auto urdf_slist = robot_config.Slist;
@@ -232,11 +234,13 @@ int main()
     std::cout << "\nTesting robot_builder  Kinova URDF version" << std::endl;
     try
     {
-	auto kinova_urdf_robot_builder_info = extract_info_for_urdf_robot_builder(kinova_yaml_path.string());
+        std::filesystem::path kinova_urdf_yaml_path = project_root / "test" / "cca_kinova_gen3_7dof_urdf.yaml";
+	auto kinova_urdf_robot_builder_info = extract_info_for_urdf_robot_builder(kinova_urdf_yaml_path.string());
         auto robot_config = robot_builder(kinova_urdf_string, kinova_urdf_robot_builder_info);
         std::cout << "Input filepath: \n" << kinova_urdf_path.string() << std::endl;
         std::cout << "Input ref_frame: \n" << kinova_urdf_robot_builder_info.frame_names.ref << std::endl;
-        std::cout << "Input base_joint: \n" << kinova_urdf_robot_builder_info.joint_names.robot[0] << std::endl;
+        std::cout << "Input base_joint: \n" << kinova_urdf_robot_builder_info.kinematic_chain.base_joint_name << std::endl;
+        std::cout << "Input end_joint: \n" << kinova_urdf_robot_builder_info.kinematic_chain.end_joint_name << std::endl;
         std::cout << "Input ee_frame: \n" << kinova_urdf_robot_builder_info.frame_names.ee << std::endl;
         std::cout << "Input ee_to_tool_offset: \n" << kinova_urdf_robot_builder_info.ee_to_tool_offset.transpose() << std::endl;
         auto urdf_slist = robot_config.Slist;
