@@ -85,7 +85,7 @@ CcModel compose_cc_model_slist(const RobotDescription &robot_description, const 
 
     // If aff info says to extract location from FK, do that
     ScrewInfo aff = aff_info;
-    if (aff.location_method == ScrewLocationMethod::FROM_FK)
+    if (aff.from.method == affordance_util::PoseSpecificationMethod::FROM_FK)
     {
         aff.location = ee_location;
     }
@@ -167,7 +167,7 @@ Eigen::MatrixXd compose_cc_model_slist(const RobotDescription &robot_description
     // If aff info says to extract location from FK, do that
     ScrewInfo aff = aff_info;
 
-    if (aff.location_method == ScrewLocationMethod::FROM_FK)
+    if (aff.from.method == affordance_util::PoseSpecificationMethod::FROM_FK)
     {
         aff.location = ee_location;
     }
@@ -909,6 +909,21 @@ std::vector<Eigen::Matrix4d> compute_se3_screw_trajectory(const ScrewInfo& si, d
   }
 
   return T_path;
+}
+
+Eigen::Vector3d axis_to_vec(const affordance_util::Axis& axis)
+{
+    switch (axis)
+    {
+    case Axis::X:        return Eigen::Vector3d(1, 0, 0);
+    case Axis::Y:        return Eigen::Vector3d(0, 1, 0);
+    case Axis::Z:        return Eigen::Vector3d(0, 0, 1);
+    case Axis::X_MINUS:  return Eigen::Vector3d(-1, 0, 0);
+    case Axis::Y_MINUS:  return Eigen::Vector3d(0, -1, 0);
+    case Axis::Z_MINUS:  return Eigen::Vector3d(0, 0, -1);
+    default:
+        throw std::runtime_error("Axis::MANUAL or unknown value has no predefined direction. Use a custom vector.");
+    }
 }
 
 } // namespace affordance_util

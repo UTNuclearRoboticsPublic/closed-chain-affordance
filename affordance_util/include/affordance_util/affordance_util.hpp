@@ -76,10 +76,23 @@ namespace affordance_util
 {
 
 /**
- * @brief Enum indicating how the location of a screw is provided or is to be determined, either as forward kinematics
+* @brief Enum providing selection from common axes or manual
+*/
+enum Axis{
+    X,
+    Y,
+    Z,
+    X_MINUS,
+    Y_MINUS,
+    Z_MINUS,
+    MANUAL
+};
+
+/**
+ * @brief Enum indicating how a pose is provided or is to be determined, either as forward kinematics
  * to the tool, or looking up a TF with a frame name
  */
-enum ScrewLocationMethod
+enum PoseSpecificationMethod
 {
     PROVIDED,
     FROM_FK,
@@ -145,6 +158,16 @@ struct CcModel
  */
 struct ScrewInfo
 {
+    /**
+    * @brief Automates getting screw info
+    */
+    struct From
+    {
+        PoseSpecificationMethod method = PoseSpecificationMethod::PROVIDED; // Default assumes screw info is provided via above members
+        Eigen::Matrix4d post_transform = Eigen::Matrix4d::Identity(); // Default is nothing to transform
+        affordance_util::Axis axis_in_final_pose;
+    }; 
+
     ScrewType type = ScrewType::UNSET;                                                          // Screw type
     Eigen::Vector3d axis = Eigen::Vector3d::Constant(std::numeric_limits<double>::quiet_NaN()); // Screw axis
     Eigen::Vector3d location =
@@ -153,8 +176,7 @@ struct ScrewInfo
         Eigen::Matrix<double, 6, 1>::Constant(std::numeric_limits<double>::quiet_NaN()); // Screw vector
     std::string location_frame; // Name of the screw frame, useful when looking up with apriltag
     double pitch = std::numeric_limits<double>::quiet_NaN(); // Pitch of the screw. Default is rotation, i.e. 0
-    ScrewLocationMethod location_method =
-        ScrewLocationMethod::PROVIDED; // Default assumes screw location is provided as an Eigen::Vector3d above
+    From from; // Get screw info from specified method
 };
 
 /**
@@ -570,6 +592,14 @@ bool NearZero(const double &near);
 
 std::vector<Eigen::Matrix4d> compute_se3_screw_trajectory(const ScrewInfo &si, double theta_total, int trajectory_density, const Eigen::Matrix4d& T_start);
 
+/**
+ * @brief Converts an affordance_util::Axis enum to a unit direction vector.
+ *
+ * @param axis Direction enum (e.g., X, Y_MINUS).
+ * @return Corresponding Eigen::Vector3d.
+ * @throws std::runtime_error If axis is MANUAL or invalid.
+ */
+Eigen::Vector3d axis_to_vec(const affordance_util::Axis& axis);
 }; // namespace affordance_util
 
 #endif // AFFORDANCE_UTIL

@@ -375,6 +375,34 @@ int main()
     	  std::cout << "T[" << i << "] =\n" << T_traj[i] << "\n\n";
     	}
     }
+    {
+        std::cout << "\nTesting axis_to_vec\n" << std::endl;
+    
+        std::vector<std::pair<Axis, std::string>> test_axes = {
+            {Axis::X, "X"},
+            {Axis::Y, "Y"},
+            {Axis::Z, "Z"},
+            {Axis::X_MINUS, "X_MINUS"},
+            {Axis::Y_MINUS, "Y_MINUS"},
+            {Axis::Z_MINUS, "Z_MINUS"},
+            {Axis::MANUAL, "MANUAL"}
+        };
+    
+        for (const auto &[axis_enum, axis_name] : test_axes)
+        {
+            std::cout << "Axis: " << axis_name << " -> ";
+            try
+            {
+                Eigen::Vector3d vec = axis_to_vec(axis_enum);
+                std::cout << vec.transpose() << std::endl;
+            }
+            catch (const std::exception &e)
+            {
+                std::cout << "Error: " << e.what() << std::endl;
+            }
+        }
+    }
+
 
     return 0;
 }
