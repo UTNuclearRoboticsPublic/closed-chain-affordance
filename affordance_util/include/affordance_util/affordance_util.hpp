@@ -78,21 +78,22 @@ namespace affordance_util
 /**
 * @brief Enum providing selection from common axes or manual
 */
-enum Axis{
+enum class Axis{
     X,
     Y,
     Z,
     X_MINUS,
     Y_MINUS,
     Z_MINUS,
-    MANUAL
+    MANUAL,
+    UNSET // For Default
 };
 
 /**
  * @brief Enum indicating how a pose is provided or is to be determined, either as forward kinematics
  * to the tool, or looking up a TF with a frame name
  */
-enum PoseSpecificationMethod
+enum class PoseSpecificationMethod
 {
     PROVIDED,
     FROM_FK,
@@ -101,7 +102,7 @@ enum PoseSpecificationMethod
 /**
  * @brief Enum specifying the type of gripper goal along a joint trajectory as constant or continuous
  */
-enum GripperGoalType
+enum class GripperGoalType
 {
     CONSTANT,
     CONTINUOUS
@@ -110,7 +111,7 @@ enum GripperGoalType
 /**
  * @brief Enum specifying the three screw types
  */
-enum ScrewType
+enum class ScrewType
 {
     ROTATION,
     TRANSLATION,
@@ -121,7 +122,7 @@ enum ScrewType
 /**
  * @brief Enum specifying the order of axes for a virtual spherical joint
  */
-enum VirtualScrewOrder
+enum class VirtualScrewOrder
 {
     XYZ,
     YZX,
@@ -166,10 +167,10 @@ struct ScrewInfo
         PoseSpecificationMethod method = PoseSpecificationMethod::PROVIDED; // Default assumes screw info is provided manually
         std::string frame_name; // Utilized if looking up using frame name
         Eigen::Matrix4d post_transform = Eigen::Matrix4d::Identity(); // Post-mutiplication transform to the looked-up pose
-        affordance_util::Axis axis_in_final_pose; // Which axis to treat as screw axis in the final pose
+        affordance_util::Axis axis_in_final_pose = affordance_util::Axis::UNSET; // Which axis to treat as screw axis in the final pose
     }; 
 
-    ScrewType type = ScrewType::UNSET;                                                          // Screw type
+    ScrewType type = affordance_util::ScrewType::UNSET;                                                          // Screw type
     Eigen::Vector3d axis = Eigen::Vector3d::Constant(std::numeric_limits<double>::quiet_NaN()); // Screw axis
     Eigen::Vector3d location =
         Eigen::Vector3d::Constant(std::numeric_limits<double>::quiet_NaN()); // Screw location from a frame of interest

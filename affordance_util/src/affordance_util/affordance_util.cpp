@@ -489,11 +489,11 @@ RobotConfig robot_builder(const std::string &urdf_string, const RobotConfig& rob
             JointData joint;
             if (joint_node->type == urdf::Joint::REVOLUTE || joint_node->type == urdf::Joint::CONTINUOUS)
             {
-                joint.screw_info.type = affordance_util::ROTATION;
+                joint.screw_info.type = affordance_util::ScrewType::ROTATION;
             }
             else if (joint_node->type == urdf::Joint::PRISMATIC)
             {
-                joint.screw_info.type = affordance_util::TRANSLATION;
+                joint.screw_info.type = affordance_util::ScrewType::TRANSLATION;
             }
             else
             {
