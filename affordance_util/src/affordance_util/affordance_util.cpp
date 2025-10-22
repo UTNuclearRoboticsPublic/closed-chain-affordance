@@ -915,12 +915,12 @@ Eigen::Vector3d axis_to_vec(const affordance_util::Axis& axis)
 {
     switch (axis)
     {
-    case Axis::X:        return Eigen::Vector3d(1, 0, 0);
-    case Axis::Y:        return Eigen::Vector3d(0, 1, 0);
-    case Axis::Z:        return Eigen::Vector3d(0, 0, 1);
-    case Axis::X_MINUS:  return Eigen::Vector3d(-1, 0, 0);
-    case Axis::Y_MINUS:  return Eigen::Vector3d(0, -1, 0);
-    case Axis::Z_MINUS:  return Eigen::Vector3d(0, 0, -1);
+    case Axis::X:        return Eigen::Vector3d::UnitX();
+    case Axis::Y:        return Eigen::Vector3d::UnitY();
+    case Axis::Z:        return Eigen::Vector3d::UnitZ();
+    case Axis::X_MINUS:  return -1.0 * Eigen::Vector3d::UnitX();
+    case Axis::Y_MINUS:  return -1.0 * Eigen::Vector3d::UnitY();
+    case Axis::Z_MINUS:  return -1.0 * Eigen::Vector3d::UnitZ();
     default:
         throw std::runtime_error("Axis::MANUAL or unknown value has no predefined direction. Use a custom vector.");
     }

@@ -85,8 +85,7 @@ enum class Axis{
     X_MINUS,
     Y_MINUS,
     Z_MINUS,
-    MANUAL,
-    UNSET // For Default
+    MANUAL
 };
 
 /**
@@ -167,7 +166,7 @@ struct ScrewInfo
         PoseSpecificationMethod method = PoseSpecificationMethod::PROVIDED; // Default assumes screw info is provided manually
         std::string frame_name; // Utilized if looking up using frame name
         Eigen::Matrix4d post_transform = Eigen::Matrix4d::Identity(); // Post-mutiplication transform to the looked-up pose
-        affordance_util::Axis axis_in_final_pose = affordance_util::Axis::UNSET; // Which axis to treat as screw axis in the final pose
+	Eigen::Vector3d axis_in_final_pose = Eigen::Vector3d::Constant(std::numeric_limits<double>::quiet_NaN()); // Which axis to treat as screw axis in the final pose. Can be utilized with axis_to_vec() helper from this library
     }; 
 
     ScrewType type = affordance_util::ScrewType::UNSET;                                                          // Screw type
