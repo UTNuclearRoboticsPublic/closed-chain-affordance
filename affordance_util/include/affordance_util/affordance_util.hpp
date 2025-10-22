@@ -163,9 +163,10 @@ struct ScrewInfo
     */
     struct From
     {
-        PoseSpecificationMethod method = PoseSpecificationMethod::PROVIDED; // Default assumes screw info is provided via above members
-        Eigen::Matrix4d post_transform = Eigen::Matrix4d::Identity(); // Default is nothing to transform
-        affordance_util::Axis axis_in_final_pose;
+        PoseSpecificationMethod method = PoseSpecificationMethod::PROVIDED; // Default assumes screw info is provided manually
+        std::string frame_name; // Utilized if looking up using frame name
+        Eigen::Matrix4d post_transform = Eigen::Matrix4d::Identity(); // Post-mutiplication transform to the looked-up pose
+        affordance_util::Axis axis_in_final_pose; // Which axis to treat as screw axis in the final pose
     }; 
 
     ScrewType type = ScrewType::UNSET;                                                          // Screw type
@@ -174,7 +175,6 @@ struct ScrewInfo
         Eigen::Vector3d::Constant(std::numeric_limits<double>::quiet_NaN()); // Screw location from a frame of interest
     Eigen::VectorXd screw =
         Eigen::Matrix<double, 6, 1>::Constant(std::numeric_limits<double>::quiet_NaN()); // Screw vector
-    std::string location_frame; // Name of the screw frame, useful when looking up with apriltag
     double pitch = std::numeric_limits<double>::quiet_NaN(); // Pitch of the screw. Default is rotation, i.e. 0
     From from; // Get screw info from specified method
 };
