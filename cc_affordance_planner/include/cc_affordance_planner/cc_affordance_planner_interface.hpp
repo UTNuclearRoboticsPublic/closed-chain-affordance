@@ -75,23 +75,29 @@ enum class MotionType
 
 /**
  * @brief Struct describing the goals for the Closed-chain affordance planner in terms of affordance state, ee
- * orientation state, grasp_pose, and gripper state.
+ * orientation state, canonical_pose, and gripper state.
  */
 struct Goal
 {
 
     double affordance = std::numeric_limits<double>::quiet_NaN();
     Eigen::VectorXd ee_orientation;
-    Eigen::Matrix4d grasp_pose;
+    Eigen::Matrix4d canonical_pose;
     double gripper = std::numeric_limits<double>::quiet_NaN();
 };
 
 /**
  * @brief Struct describing a task for the Closed-Chain Affordance planner in terms of affordance info, goal state,
- * trajectory density, motion type, virtual screw order, grasp pose, and gripper goal type.
+ * trajectory density, motion type, virtual screw order, canonical pose, and gripper goal type.
  */
 struct TaskDescription
 {
+    struct PoseFrom {
+        affordance_util::PoseSpecificationMethod method = affordance_util::PoseSpecificationMethod::PROVIDED; // Default is to assume it is provided manually as goal
+        std::string frame_name; // Utilized if looking up using frame name
+        Eigen::Matrix4d post_transform = Eigen::Matrix4d::Identity(); // Post-mutiplication transform to the looked-up pose
+    };
+
     affordance_util::ScrewInfo affordance_info;
     Goal goal;
     int trajectory_density = 10;
@@ -99,6 +105,7 @@ struct TaskDescription
     affordance_util::VirtualScrewOrder vir_screw_order = affordance_util::VirtualScrewOrder::XYZ;
     affordance_util::GripperGoalType gripper_goal_type = affordance_util::GripperGoalType::CONSTANT;
     EeOrientationConstraint ee_orientation_constraint = EeOrientationConstraint::DEFAULT;
+    PoseFrom canonical_pose_from; // Get canonical pose from specified method
 
     /**
      * @brief Given a planning type, constructs a cca task description with necessary parameters. This constructor is
@@ -169,7 +176,7 @@ class CcAffordancePlannerInterface
      * - `goal`: goal to achieve with planning
      *     `affordance`: affordance goal
      *     `ee_orientation`: EE orientation goal for 1 or more axes per vir_screw_order.
-     *     `grasp_pose`: cartesian goal for the EE to achieve during APPROACH motion
+     *     `canonical_pose`: cartesian goal for the EE to achieve during APPROACH motion
      *     `gripper`: goal state for the gripper
      * - `vir_screw_order`: affordance_util::VirtualScrewOrder describing the order of the joints in the virtual
      *   spherical joint of the closed-chain model. This joint describes the orientation freedom of the gripper. Default

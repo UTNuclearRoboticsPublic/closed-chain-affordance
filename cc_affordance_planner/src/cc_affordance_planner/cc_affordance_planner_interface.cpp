@@ -14,7 +14,7 @@ TaskDescription::TaskDescription(const PlanningType &planningType)
 
         // Affordance Info
         affordance_info.type = affordance_util::ScrewType::ROTATION;
-        affordance_info.location_method = affordance_util::ScrewLocationMethod::FROM_FK;
+        affordance_info.from.method = affordance_util::PoseSpecificationMethod::FROM_FK;
     }
     else if (planningType == PlanningType::CARTESIAN_GOAL)
     {
@@ -24,7 +24,7 @@ TaskDescription::TaskDescription(const PlanningType &planningType)
 
         // Affordance Info
         affordance_info.type = affordance_util::ScrewType::ROTATION;
-        affordance_info.location_method = affordance_util::ScrewLocationMethod::FROM_FK;
+        affordance_info.from.method = affordance_util::PoseSpecificationMethod::FROM_FK;
 
         // The cartesian goal is simply the affordance reference pose i.e. a pose at which the affordance is zero for
         // the APPROACH motion. Doesn't matter what affordance we chose since at its zero, the affordance has not caused
@@ -103,11 +103,11 @@ PlannerResult CcAffordancePlannerInterface::generate_joint_trajectory(
     if (task_description.motion_type == MotionType::APPROACH)
     {
         // Extract additional task description
-        const Eigen::Matrix4d grasp_pose = task_description.goal.grasp_pose;
+        const Eigen::Matrix4d canonical_pose = task_description.goal.canonical_pose;
 
         // Compose the closed-chain model screws and determine the limit for the approach screw
         const affordance_util::CcModel cc_model =
-            affordance_util::compose_cc_model_slist(robot_description, aff, grasp_pose, vir_screw_order);
+            affordance_util::compose_cc_model_slist(robot_description, aff, canonical_pose, vir_screw_order);
 
         // Extract and construct the secondary joint goals
         nof_secondary_joints += 1; // add approach joint
@@ -388,7 +388,7 @@ void CcAffordancePlannerInterface::validate_input_(const affordance_util::RobotD
         throw std::invalid_argument("Task description: 'affordance_info.type' must be specified.");
     }
 
-    if (task_description.affordance_info.location_method != affordance_util::ScrewLocationMethod::FROM_FK &&
+    if (task_description.affordance_info.from.method != affordance_util::PoseSpecificationMethod::FROM_FK &&
         (task_description.affordance_info.axis.hasNaN() ||
          task_description.affordance_info.location.hasNaN() && task_description.affordance_info.screw.hasNaN()))
     {
@@ -396,7 +396,7 @@ void CcAffordancePlannerInterface::validate_input_(const affordance_util::RobotD
                                     "or 'affordance_info.screw' must be specified.");
     }
 
-    if (task_description.affordance_info.location_method == affordance_util::ScrewLocationMethod::FROM_FK &&
+    if (task_description.affordance_info.from.method == affordance_util::PoseSpecificationMethod::FROM_FK &&
         (task_description.affordance_info.axis.hasNaN() && task_description.affordance_info.screw.hasNaN()))
     {
         throw std::invalid_argument(
@@ -423,11 +423,11 @@ void CcAffordancePlannerInterface::validate_input_(const affordance_util::RobotD
     }
 
     /* if ((task_description.motion_type == MotionType::APPROACH) && */
-    /*     ((!task_description.goal.grasp_pose.block<3, 3>(0, 0).isUnitary(tolerance)) || */
-    /*      (std::abs(task_description.goal.grasp_pose(3, 3) - 1.0) > tolerance) || */
-    /*      (!task_description.goal.grasp_pose.row(3).head(3).isZero(tolerance)))) */
+    /*     ((!task_description.goal.canonical_pose.block<3, 3>(0, 0).isUnitary(tolerance)) || */
+    /*      (std::abs(task_description.goal.canonical_pose(3, 3) - 1.0) > tolerance) || */
+    /*      (!task_description.goal.canonical_pose.row(3).head(3).isZero(tolerance)))) */
     /* { */
-    /*     throw std::invalid_argument("Task description: 'grasp_pose' is not a valid transformation matrix. Valid grasp
+    /*     throw std::invalid_argument("Task description: 'canonical_pose' is not a valid transformation matrix. Valid canonical
      * " */
     /*                                 "pose is needed for approach motion."); */
     /* } */
