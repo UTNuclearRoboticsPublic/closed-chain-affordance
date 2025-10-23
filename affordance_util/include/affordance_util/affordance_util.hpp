@@ -161,7 +161,7 @@ struct ScrewInfo
     /**
     * @brief Automates getting screw info
     */
-    struct From
+    struct ScrewInfoFrom
     {
         PoseSpecificationMethod method = PoseSpecificationMethod::PROVIDED; // Default assumes screw info is provided manually
         std::string frame_name; // Utilized if looking up using frame name
@@ -176,7 +176,7 @@ struct ScrewInfo
     Eigen::VectorXd screw =
         Eigen::Matrix<double, 6, 1>::Constant(std::numeric_limits<double>::quiet_NaN()); // Screw vector
     double pitch = std::numeric_limits<double>::quiet_NaN(); // Pitch of the screw. Default is rotation, i.e. 0
-    From from; // Get screw info from specified method
+    ScrewInfoFrom from; // Get screw info from specified method
 };
 
 /**
