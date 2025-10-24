@@ -92,11 +92,6 @@ struct Goal
  */
 struct TaskDescription
 {
-    struct PoseFrom {
-        affordance_util::PoseSpecificationMethod method = affordance_util::PoseSpecificationMethod::PROVIDED; // Default is to assume it is provided manually as goal
-        std::string frame_name; // Utilized if looking up using frame name
-        Eigen::Matrix4d post_transform = Eigen::Matrix4d::Identity(); // Post-mutiplication transform to the looked-up pose
-    };
 
     affordance_util::ScrewInfo affordance_info;
     Goal goal;
@@ -105,7 +100,7 @@ struct TaskDescription
     affordance_util::VirtualScrewOrder vir_screw_order = affordance_util::VirtualScrewOrder::XYZ;
     affordance_util::GripperGoalType gripper_goal_type = affordance_util::GripperGoalType::CONSTANT;
     EeOrientationConstraint ee_orientation_constraint = EeOrientationConstraint::DEFAULT;
-    PoseFrom canonical_pose_from; // Get canonical pose from specified method
+    affordance_util::PoseFrom canonical_pose_from; // Get canonical pose from specified method
 
     /**
      * @brief Given a planning type, constructs a cca task description with necessary parameters. This constructor is

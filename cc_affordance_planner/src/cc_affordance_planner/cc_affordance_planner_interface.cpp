@@ -1,3 +1,4 @@
+#include <affordance_util/affordance_util.hpp>
 #include <cc_affordance_planner/cc_affordance_planner_interface.hpp>
 
 namespace cc_affordance_planner
@@ -91,7 +92,14 @@ PlannerResult CcAffordancePlannerInterface::generate_joint_trajectory(
     PlannerResult plannerResult;
 
     // Extract task description
-    const affordance_util::ScrewInfo aff = task_description.affordance_info;
+    // Affordance info -- handle if asked to get from FK
+    affordance_util::ScrewInfo aff;
+    if (task_description.affordance_info.from.method==affordance_util::PoseSpecificationMethod::FROM_FK){
+        aff = affordance_util::get_affordance_info_from_fk(task_description.affordance_info, robot_description);
+    }
+    else {
+        aff = task_description.affordance_info;
+    }
     const affordance_util::VirtualScrewOrder vir_screw_order = task_description.vir_screw_order;
 
     // Compute the nof secondary joints
@@ -103,7 +111,15 @@ PlannerResult CcAffordancePlannerInterface::generate_joint_trajectory(
     if (task_description.motion_type == MotionType::APPROACH)
     {
         // Extract additional task description
-        const Eigen::Matrix4d canonical_pose = task_description.goal.canonical_pose;
+        // Canonical pose -- handle if asked to get from FK
+        Eigen::Matrix4d canonical_pose;
+
+        if (task_description.canonical_pose_from.method==affordance_util::PoseSpecificationMethod::FROM_FK){
+            canonical_pose = affordance_util::get_pose_from_fk(task_description.canonical_pose_from, robot_description);
+        }
+        else {
+            canonical_pose = task_description.goal.canonical_pose;
+        }
 
         // Compose the closed-chain model screws and determine the limit for the approach screw
         const affordance_util::CcModel cc_model =
@@ -389,18 +405,18 @@ void CcAffordancePlannerInterface::validate_input_(const affordance_util::RobotD
     }
 
     if (task_description.affordance_info.from.method != affordance_util::PoseSpecificationMethod::FROM_FK &&
-        (task_description.affordance_info.axis.hasNaN() ||
-         task_description.affordance_info.location.hasNaN() && task_description.affordance_info.screw.hasNaN()))
+        ((task_description.affordance_info.axis.hasNaN() ||
+         task_description.affordance_info.location.hasNaN()) && task_description.affordance_info.screw.hasNaN()))
     {
         throw std::invalid_argument("Task description: Either 'affordance_info.axis' and 'affordance_info.location', "
                                     "or 'affordance_info.screw' must be specified.");
     }
 
     if (task_description.affordance_info.from.method == affordance_util::PoseSpecificationMethod::FROM_FK &&
-        (task_description.affordance_info.axis.hasNaN() && task_description.affordance_info.screw.hasNaN()))
+        (task_description.affordance_info.axis.hasNaN() || task_description.affordance_info.from.axis_in_final_pose.hasNaN()))
     {
         throw std::invalid_argument(
-            "Task description: Either 'affordance_info.axis' or 'affordance_info.screw' must be specified.");
+            "Task description: For 'affordance_info.method = FROM_FK', either 'affordance_info.axis' or 'affordance_info.from.axis_in_final_pose' must be specified.");
     }
 
     if (task_description.affordance_info.type == affordance_util::ScrewType::SCREW &&
