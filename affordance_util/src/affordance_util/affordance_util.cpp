@@ -85,10 +85,6 @@ CcModel compose_cc_model_slist(const RobotDescription &robot_description, const 
 
     // If aff info says to extract location from FK, do that
     ScrewInfo aff = aff_info;
-    if (aff.from.method == affordance_util::PoseSpecificationMethod::FROM_FK)
-    {
-        aff.location = ee_location;
-    }
 
     // In case aff screw is not set, compute it
     if (aff.screw.hasNaN())
@@ -166,11 +162,6 @@ Eigen::MatrixXd compose_cc_model_slist(const RobotDescription &robot_description
 
     // If aff info says to extract location from FK, do that
     ScrewInfo aff = aff_info;
-
-    if (aff.from.method == affordance_util::PoseSpecificationMethod::FROM_FK)
-    {
-        aff.location = ee_location;
-    }
 
     // In case aff screw is not set, compute it
     if (aff.screw.hasNaN())
@@ -924,6 +915,51 @@ Eigen::Vector3d axis_to_vec(const affordance_util::Axis& axis)
     default:
         throw std::runtime_error("Axis::MANUAL or unknown value has no predefined direction. Use a custom vector.");
     }
+}
+
+affordance_util::ScrewInfo get_affordance_info_from_fk(const affordance_util::ScrewInfo& affordance_info, const affordance_util::RobotDescription& robot_description){
+
+   if (affordance_info.from.method!=affordance_util::PoseSpecificationMethod::FROM_FK){
+       throw std::runtime_error("Cannot get affordance info from FK if the 'method' field is not 'FROM_FK'");
+   }
+
+   // Function output
+   affordance_util::ScrewInfo affordance_info_from_fk = affordance_info;
+   affordance_info_from_fk.from = affordance_util::ScrewInfoFrom(); // Reset from info for output
+
+   // Compute forward kinematics
+   const Eigen::Matrix4d T_ref_to_fk =
+       FKinSpace(robot_description.M, robot_description.slist, robot_description.joint_states);
+
+   // Apply post-transform
+   const Eigen::Isometry3d T_ref_to_aff = Eigen::Isometry3d(T_ref_to_fk * affordance_info.from.post_transform);
+
+   // Extract translation from the transform
+   affordance_info_from_fk.location = T_ref_to_aff.translation();	
+
+   // Compute what the specified axis would be in the reference frame
+   if (!affordance_info.from.axis_in_final_pose.hasNaN()){
+       affordance_info_from_fk.axis = T_ref_to_aff.linear() * affordance_info.from.axis_in_final_pose;
+   }
+
+   return affordance_info_from_fk;
+
+}
+
+Eigen::Matrix4d get_pose_from_fk(const affordance_util::PoseFrom& pose_from, const affordance_util::RobotDescription& robot_description){
+
+    if (pose_from.method != affordance_util::PoseSpecificationMethod::FROM_FK) {
+        throw std::runtime_error("Cannot get pose from FK if the 'method' field is not 'FROM_FK'");
+    }
+
+   // Compute forward kinematics
+   const Eigen::Matrix4d T_ref_to_fk =
+       FKinSpace(robot_description.M, robot_description.slist, robot_description.joint_states);
+
+   // Apply post-transform
+   const Eigen::Matrix4d T_ref_to_final = T_ref_to_fk * pose_from.post_transform;
+
+   return T_ref_to_final;
 }
 
 } // namespace affordance_util

@@ -154,21 +154,31 @@ struct CcModel
 };
 
 /**
+* @brief Struct to facilitate automating getting a pose using various approaches
+*/
+struct PoseFrom {
+   affordance_util::PoseSpecificationMethod method = affordance_util::PoseSpecificationMethod::PROVIDED; // Default assumes it is provided Manually
+   std::string frame_name; // Utilized if looking up using frame name
+   Eigen::Matrix4d post_transform = Eigen::Matrix4d::Identity(); // Post-mutiplication transform to the looked-up pose
+};
+
+/**
+* @brief Struct to facilitate automating getting screw info using various approaches
+*/
+struct ScrewInfoFrom
+{
+    PoseSpecificationMethod method = PoseSpecificationMethod::PROVIDED; // Default assumes screw info is provided manually
+    std::string frame_name; // Utilized if looking up using frame name
+    Eigen::Matrix4d post_transform = Eigen::Matrix4d::Identity(); // Post-mutiplication transform to the looked-up pose
+    Eigen::Vector3d axis_in_final_pose = Eigen::Vector3d::Constant(std::numeric_limits<double>::quiet_NaN()); // Which axis to treat as screw axis in the final pose. Can be utilized with axis_to_vec() helper from this library
+}; 
+
+
+/**
  * @brief Struct providing information about a screw
  */
 struct ScrewInfo
 {
-    /**
-    * @brief Automates getting screw info
-    */
-    struct ScrewInfoFrom
-    {
-        PoseSpecificationMethod method = PoseSpecificationMethod::PROVIDED; // Default assumes screw info is provided manually
-        std::string frame_name; // Utilized if looking up using frame name
-        Eigen::Matrix4d post_transform = Eigen::Matrix4d::Identity(); // Post-mutiplication transform to the looked-up pose
-	Eigen::Vector3d axis_in_final_pose = Eigen::Vector3d::Constant(std::numeric_limits<double>::quiet_NaN()); // Which axis to treat as screw axis in the final pose. Can be utilized with axis_to_vec() helper from this library
-    }; 
-
     ScrewType type = affordance_util::ScrewType::UNSET;                                                          // Screw type
     Eigen::Vector3d axis = Eigen::Vector3d::Constant(std::numeric_limits<double>::quiet_NaN()); // Screw axis
     Eigen::Vector3d location =
@@ -176,7 +186,7 @@ struct ScrewInfo
     Eigen::VectorXd screw =
         Eigen::Matrix<double, 6, 1>::Constant(std::numeric_limits<double>::quiet_NaN()); // Screw vector
     double pitch = std::numeric_limits<double>::quiet_NaN(); // Pitch of the screw. Default is rotation, i.e. 0
-    ScrewInfoFrom from; // Get screw info from specified method
+    affordance_util::ScrewInfoFrom from; // Get screw info from specified method
 };
 
 /**
@@ -600,6 +610,39 @@ std::vector<Eigen::Matrix4d> compute_se3_screw_trajectory(const ScrewInfo &si, d
  * @throws std::runtime_error If axis is MANUAL or invalid.
  */
 Eigen::Vector3d axis_to_vec(const affordance_util::Axis& axis);
+
+/**
+ * @brief Computes the screw-based affordance pose and axis using forward kinematics.
+ *
+ * Uses the robot’s current joint states to evaluate forward kinematics from the base to the tool frame,
+ * then applies any optional post-transform and axis selection specified in the input affordance info.
+ *
+ * @param affordance_info ScrewInfo with `from.method` set to `FROM_FK`, optionally including
+ *        a `post_transform` and `axis_in_final_pose` specification.
+ * @param robot_description RobotDescription containing the robot space-form screw list, M matrix indicating FK at home config, 
+ *        and current joint states.
+ *
+ * @return ScrewInfo with the `location` and `axis` fields populated according to the forward kinematics 
+ *         and any additional transformations or axis selections applied. The from field in the screw info 
+ *         is reset to default to indicate screw info is now provided.
+ */
+affordance_util::ScrewInfo get_affordance_info_from_fk(const affordance_util::ScrewInfo& affordance_info, const affordance_util::RobotDescription& robot_description);
+
+/**
+ * @brief Computes the forward kinematics for a given pose specification and applies any post-transform.
+ *
+ * Computes the forward kinematics from the robot’s current joint configuration.
+ * If a post-transform is defined, the FK is post-multiplied with it.
+ *
+ * @param pose_from PoseFrom with `method` set to `FROM_FK`, optionally including a `post_transform` to apply.
+ * @param robot_description RobotDescription containing the robot space-form screw list, M matrix indicating FK at home config, 
+ *        and current joint states.
+ *
+ * @return Eigen::Matrix4d representing the pose obtained from forward kinematics, 
+ *         with any post-transformation applied.
+ */
+Eigen::Matrix4d get_pose_from_fk(const affordance_util::PoseFrom& pose_from, const affordance_util::RobotDescription& robot_description);
+
 }; // namespace affordance_util
 
 #endif // AFFORDANCE_UTIL

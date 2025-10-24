@@ -403,6 +403,93 @@ int main()
         }
     }
 
+    {
+    	std::cout << "\nTesting get_affordance_info_from_fk" << std::endl;
+
+        // We'll use Spot's robot description
+        affordance_util::RobotDescription robot_description;
+        try {
+            std::filesystem::path spot_urdf_yaml_path = project_root / "test" / "cca_spot_urdf.yaml";
+	    auto spot_urdf_robot_builder_info = extract_info_for_urdf_robot_builder(spot_urdf_yaml_path.string());
+            auto robot_config = robot_builder(spot_urdf_string, spot_urdf_robot_builder_info);
+            robot_description.slist = robot_config.Slist;
+            robot_description.M = robot_config.M;
+            robot_description.joint_states = Eigen::VectorXd::Zero(robot_config.joint_names.robot.size()); // just set to zero
+	}catch (const std::exception &e)
+        {
+            std::cerr << "Error building robot: " << e.what() << std::endl;
+        }
+
+        std::cout << "FK: \n" << robot_description.M << std::endl;
+
+        affordance_util::ScrewInfo screw_info;
+    
+        // Set the method to FROM_FK
+        screw_info.from.method = affordance_util::PoseSpecificationMethod::FROM_FK;
+    
+
+        // Ask for +Z axis in final pose
+        screw_info.from.axis_in_final_pose = affordance_util::axis_to_vec(affordance_util::Axis::X);
+        std::cout << "Axis in final pose: " << screw_info.from.axis_in_final_pose.transpose() << std::endl;
+    
+        // Call function
+        std::cout << "With post-transform as 90deg rotation about z-axis only:" << std::endl;
+        {
+        // Optionally apply a small post-transform (e.g., 10cm along X)
+        screw_info.from.post_transform = Eigen::Isometry3d(Eigen::AngleAxisd(M_PI / 2.0, Eigen::Vector3d::UnitZ())).matrix();
+
+        affordance_util::ScrewInfo updated = get_affordance_info_from_fk(screw_info, robot_description);
+    
+        // Print results
+        std::cout << "Location: " << updated.location.transpose() << std::endl;
+        std::cout << "Axis: " << updated.axis.transpose() << std::endl;
+	}
+
+        // Now call again to test translation-only post-transform
+        std::cout << "With post-transform as 10cm shift along x axis only:" << std::endl;
+        {
+        screw_info.from.post_transform = Eigen::Matrix4d::Identity();
+        screw_info.from.post_transform(0, 3) = 0.1;
+        affordance_util::ScrewInfo updated = get_affordance_info_from_fk(screw_info, robot_description);
+
+        std::cout << "Location: " << updated.location.transpose() << std::endl;
+        std::cout << "Axis: " << updated.axis.transpose() << std::endl;
+        }
+    }
+    {
+        std::cout << "\nTesting get_pose_from_fk\n" << std::endl;
+
+        // We'll use Spot's robot description
+        affordance_util::RobotDescription robot_description;
+        try {
+            std::filesystem::path spot_urdf_yaml_path = project_root / "test" / "cca_spot_urdf.yaml";
+	    auto spot_urdf_robot_builder_info = extract_info_for_urdf_robot_builder(spot_urdf_yaml_path.string());
+            auto robot_config = robot_builder(spot_urdf_string, spot_urdf_robot_builder_info);
+            robot_description.slist = robot_config.Slist;
+            robot_description.M = robot_config.M;
+            robot_description.joint_states = Eigen::VectorXd::Zero(robot_config.joint_names.robot.size()); // just set to zero
+	}catch (const std::exception &e)
+        {
+            std::cerr << "Error building robot: " << e.what() << std::endl;
+        }
+
+        std::cout << "FK: \n" << robot_description.M << std::endl;
+    
+        affordance_util::PoseFrom pose_from;
+        pose_from.method = affordance_util::PoseSpecificationMethod::FROM_FK;
+    
+        // Post-transform: 90 degrees about Z axis
+        pose_from.post_transform = Eigen::Matrix4d::Identity();
+        pose_from.post_transform = Eigen::Isometry3d(Eigen::AngleAxisd(M_PI / 2.0, Eigen::Vector3d::UnitZ())).matrix();
+    
+        Eigen::Matrix4d result = get_pose_from_fk(pose_from, robot_description);
+    
+        std::cout << "With post-transform as 90deg rotation about z-axis only:" << std::endl;
+        std::cout << "Final Pose:\n" << result << std::endl;
+    }
+
+
+
 
     return 0;
 }
