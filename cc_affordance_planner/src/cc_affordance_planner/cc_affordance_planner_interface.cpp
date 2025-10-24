@@ -413,7 +413,7 @@ void CcAffordancePlannerInterface::validate_input_(const affordance_util::RobotD
     }
 
     if (task_description.affordance_info.from.method == affordance_util::PoseSpecificationMethod::FROM_FK &&
-        (task_description.affordance_info.axis.hasNaN() || task_description.affordance_info.from.axis_in_final_pose.hasNaN()))
+        (task_description.affordance_info.axis.hasNaN() && task_description.affordance_info.from.axis_in_final_pose.hasNaN()))
     {
         throw std::invalid_argument(
             "Task description: For 'affordance_info.method = FROM_FK', either 'affordance_info.axis' or 'affordance_info.from.axis_in_final_pose' must be specified.");
