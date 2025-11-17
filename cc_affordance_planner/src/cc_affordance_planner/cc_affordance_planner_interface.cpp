@@ -36,10 +36,10 @@ CcAffordancePlannerInterface::CcAffordancePlannerInterface(const PlannerConfig &
             "Planner config: 'closure_err_threshold_lin' cannot be unrealistically small, i.e. less than 1e-10.");
     }
 
-    if ((planner_config.ik_max_itr < 2) || (planner_config.accuracy > 10000))
+    if ((planner_config.ik_max_itr < 2) || (planner_config.ik_max_itr > 100000))
     {
 
-        throw std::invalid_argument("Planner config: 'ik_max_itr' must be in the range [2, 10000]");
+        throw std::invalid_argument("Planner config: 'ik_max_itr' must be in the range [2, 100000]");
     }
 }
 
@@ -200,7 +200,7 @@ PlannerResult CcAffordancePlannerInterface::generate_specified_motion_joint_traj
             slist, secondary_joint_goals, nof_secondary_joints, trajectory_density, st);
         {
             std::unique_lock<std::mutex> lock(mtx);
-            inverseResult.update_method = UpdateMethod::TRANSPOSE;
+            transposeResult.update_method = UpdateMethod::TRANSPOSE;
             transposeResult.update_trail += "transpose";
             transpose_result_obtained = true;
         }
