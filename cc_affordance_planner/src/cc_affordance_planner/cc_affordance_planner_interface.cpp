@@ -4,44 +4,6 @@
 namespace cc_affordance_planner
 {
 
-TaskDescription::TaskDescription(const PlanningType &planningType)
-{
-
-    if (planningType == PlanningType::EE_ORIENTATION_ONLY)
-    {
-        // Model Setting -- EE_ORIENTATION_ONLY is simply a special case of the AFFORDANCE motion
-        motion_type = cc_affordance_planner::MotionType::AFFORDANCE;
-        vir_screw_order = affordance_util::VirtualScrewOrder::NONE;
-
-        // Affordance Info
-        affordance_info.type = affordance_util::ScrewType::ROTATION;
-        affordance_info.from.method = affordance_util::PoseSpecificationMethod::FROM_FK;
-    }
-    else if (planningType == PlanningType::CARTESIAN_GOAL)
-    {
-        // Model Setting -- CARTESIAN_GOAL is simply a special case of the APPROACH motion
-        motion_type = cc_affordance_planner::MotionType::APPROACH;
-        vir_screw_order = affordance_util::VirtualScrewOrder::NONE;
-
-        // Affordance Info
-        affordance_info.type = affordance_util::ScrewType::ROTATION;
-        affordance_info.from.method = affordance_util::PoseSpecificationMethod::FROM_FK;
-
-        // The cartesian goal is simply the affordance reference pose i.e. a pose at which the affordance is zero for
-        // the APPROACH motion. Doesn't matter what affordance we chose since at its zero, the affordance has not caused
-        // any transformation yet.
-        affordance_info.axis = Eigen::Vector3d(0.707107, -0.408248, 0.577350); // A random axis
-        goal.affordance = 1e-7;                                                // an epsilon
-    }
-    else if (planningType == PlanningType::APPROACH)
-    {
-        // Model Setting -- Set to common use-case default values
-        motion_type = cc_affordance_planner::MotionType::APPROACH;
-        vir_screw_order = affordance_util::VirtualScrewOrder::NONE; // Constrain the EE orientation to what's dictated
-                                                                    // by the approach path
-    }
-}
-
 CcAffordancePlannerInterface::CcAffordancePlannerInterface()
     : ccAffordancePlannerInverse_(), ccAffordancePlannerTranspose_()
 {
@@ -90,12 +52,14 @@ PlannerResult CcAffordancePlannerInterface::generate_joint_trajectory(
 
     // Output of the function
     PlannerResult plannerResult;
+    plannerResult.task_description = task_description; // Record the task description used for planning
 
     // Extract task description
     // Affordance info -- handle if asked to get from FK
     affordance_util::ScrewInfo aff;
     if (task_description.affordance_info.from.method==affordance_util::PoseSpecificationMethod::FROM_FK){
         aff = affordance_util::get_affordance_info_from_fk(task_description.affordance_info, robot_description);
+        plannerResult.task_description.affordance_info = aff; // Update the plannerResult task description to reflect what was used
     }
     else {
         aff = task_description.affordance_info;
@@ -116,6 +80,7 @@ PlannerResult CcAffordancePlannerInterface::generate_joint_trajectory(
 
         if (task_description.canonical_pose_from.method==affordance_util::PoseSpecificationMethod::FROM_FK){
             canonical_pose = affordance_util::get_pose_from_fk(task_description.canonical_pose_from, robot_description);
+            plannerResult.task_description.goal.canonical_pose = canonical_pose; // Update the plannerResult canonical pose to reflect what was used
         }
         else {
             canonical_pose = task_description.goal.canonical_pose;

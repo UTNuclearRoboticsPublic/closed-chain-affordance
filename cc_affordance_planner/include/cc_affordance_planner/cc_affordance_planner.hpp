@@ -45,6 +45,79 @@ namespace cc_affordance_planner
 {
 
 /**
+* @brief Enum describing common ee orientation constraints
+*/
+enum class EeOrientationConstraint 
+{
+    PRESERVE,
+    DEFAULT
+};
+
+/**
+ * @brief Enum describing various planning types that the closed-chain affordance planner offers
+ */
+enum class PlanningType
+{
+    APPROACH,
+    AFFORDANCE,
+    EE_ORIENTATION_ONLY,
+    CARTESIAN_GOAL
+};
+
+/**
+ * @brief Enum describing various motion types that the closed-chain affordance model offers
+ */
+enum class MotionType
+{
+    APPROACH,
+    AFFORDANCE,
+};
+
+/**
+ * @brief Struct describing the goals for the Closed-chain affordance planner in terms of affordance state, ee
+ * orientation state, canonical_pose, and gripper state.
+ */
+struct Goal
+{
+
+    double affordance = std::numeric_limits<double>::quiet_NaN();
+    Eigen::VectorXd ee_orientation;
+    Eigen::Matrix4d canonical_pose;
+    double gripper = std::numeric_limits<double>::quiet_NaN();
+};
+
+/**
+ * @brief Struct describing a task for the Closed-Chain Affordance planner in terms of affordance info, goal state,
+ * trajectory density, motion type, virtual screw order, canonical pose, and gripper goal type.
+ */
+struct TaskDescription
+{
+
+    affordance_util::ScrewInfo affordance_info;
+    Goal goal;
+    int trajectory_density = 10;
+    MotionType motion_type = MotionType::AFFORDANCE;
+    affordance_util::VirtualScrewOrder vir_screw_order = affordance_util::VirtualScrewOrder::XYZ;
+    affordance_util::GripperGoalType gripper_goal_type = affordance_util::GripperGoalType::CONSTANT;
+    EeOrientationConstraint ee_orientation_constraint = EeOrientationConstraint::DEFAULT;
+    affordance_util::PoseFrom canonical_pose_from; // Get canonical pose from specified method
+
+    /**
+     * @brief Given a planning type, constructs a cca task description with necessary parameters. This constructor is
+     * especially useful for CARTESIAN_GOAL and EE_ORIENTATION_ONLY planning, which are special cases of APPROACH and
+     * AFFORDANCE motions respectively.
+     *
+     * @param task_type cc_affordance_planner::PlanningType indicating what type of planning is intended.
+     */
+    explicit TaskDescription(const PlanningType &planningType);
+
+    /**
+     * @brief Default constructor for cca task description
+     */
+    TaskDescription() = default;
+};
+
+/**
  * @brief Enum qualitatively describing a trajectory length as FULL, PARTIAL, or UNSET
  */
 enum class TrajectoryDescription
@@ -69,8 +142,8 @@ enum class UpdateMethod
  * success indicating success; trajectory_description indicating full or partial trajectory with values, "FULL",
  * "PARTIAL", or "UNSET"; joint_trajectory representing the joint trajectory; planning_time representing time taken for
  * planning in microseconds; update_method indicating the type of update scheme used, for instance "inverse",
- * "inverse with dls", and "transpose"; and includes_gripper_trajectory indicating whether the result includes gripper
- * trajectory
+ * "inverse with dls", and "transpose"; includes_gripper_trajectory indicating whether the result includes gripper
+ * trajectory; and task_description representing the task description used for planning.
  */
 struct PlannerResult
 {
@@ -81,6 +154,7 @@ struct PlannerResult
     UpdateMethod update_method;
     std::string update_trail = "";
     bool includes_gripper_trajectory = false;
+    TaskDescription task_description;
 };
 
 /**
