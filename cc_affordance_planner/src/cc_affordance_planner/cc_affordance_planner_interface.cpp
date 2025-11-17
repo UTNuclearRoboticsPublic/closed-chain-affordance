@@ -52,14 +52,12 @@ PlannerResult CcAffordancePlannerInterface::generate_joint_trajectory(
 
     // Output of the function
     PlannerResult plannerResult;
-    plannerResult.task_description = task_description; // Record the task description used for planning
 
     // Extract task description
     // Affordance info -- handle if asked to get from FK
     affordance_util::ScrewInfo aff;
     if (task_description.affordance_info.from.method==affordance_util::PoseSpecificationMethod::FROM_FK){
         aff = affordance_util::get_affordance_info_from_fk(task_description.affordance_info, robot_description);
-        plannerResult.task_description.affordance_info = aff; // Update the plannerResult task description to reflect what was used
     }
     else {
         aff = task_description.affordance_info;
@@ -72,15 +70,13 @@ PlannerResult CcAffordancePlannerInterface::generate_joint_trajectory(
     // TODO: Remove the need to pass nof_secondary_joints to the planner and get it directly from the size of the
     // theta_sdf vector.
 
+    // Extract additional task description
+    Eigen::Matrix4d canonical_pose;
     if (task_description.motion_type == MotionType::APPROACH)
     {
-        // Extract additional task description
         // Canonical pose -- handle if asked to get from FK
-        Eigen::Matrix4d canonical_pose;
-
         if (task_description.canonical_pose_from.method==affordance_util::PoseSpecificationMethod::FROM_FK){
             canonical_pose = affordance_util::get_pose_from_fk(task_description.canonical_pose_from, robot_description);
-            plannerResult.task_description.goal.canonical_pose = canonical_pose; // Update the plannerResult canonical pose to reflect what was used
         }
         else {
             canonical_pose = task_description.goal.canonical_pose;
@@ -142,6 +138,12 @@ PlannerResult CcAffordancePlannerInterface::generate_joint_trajectory(
         plannerResult.joint_trajectory, robot_description.joint_states,
         gripper_joint_trajectory); // Will insert gripper_joint_trajectory if task description included a gripper goal
 
+    // Record the task description used for planning
+    plannerResult.task_description = task_description;
+    plannerResult.task_description.affordance_info = aff; // Update affordance info if obtained from FK
+    plannerResult.task_description.goal.canonical_pose = canonical_pose; // Update canonical pose if obtained from FK
+
+    // Return the result
     return plannerResult;
 }
 
