@@ -15,7 +15,7 @@ TaskDescription::TaskDescription(const PlanningType &planningType)
 
         // Affordance Info
         affordance_info.type = affordance_util::ScrewType::ROTATION;
-        affordance_info.from.method = affordance_util::PoseSpecificationMethod::FROM_FK;
+        affordance_info_from.method = affordance_util::PoseSpecificationMethod::FROM_FK;
     }
     else if (planningType == PlanningType::CARTESIAN_GOAL)
     {
@@ -25,12 +25,12 @@ TaskDescription::TaskDescription(const PlanningType &planningType)
 
         // Affordance Info
         affordance_info.type = affordance_util::ScrewType::ROTATION;
-        affordance_info.from.method = affordance_util::PoseSpecificationMethod::FROM_FK;
 
         // The cartesian goal is simply the affordance reference pose i.e. a pose at which the affordance is zero for
         // the APPROACH motion. Doesn't matter what affordance we chose since at its zero, the affordance has not caused
         // any transformation yet.
         affordance_info.axis = Eigen::Vector3d::Ones().normalized(); // A random axis
+        affordance_info.location = Eigen::Vector3d::Ones(); // A random location
         constexpr double eps = 1e-5; // An epsilon
         goal.affordance = eps;
     }
