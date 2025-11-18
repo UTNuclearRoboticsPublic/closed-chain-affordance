@@ -134,6 +134,13 @@ enum class VirtualScrewOrder
 };
 
 /**
+* @brief Struct to contain the axis and location information of a vector
+*/
+struct VecInfo{
+    Eigen::Vector3d axis = Eigen::Vector3d::Constant(std::numeric_limits<double>::quiet_NaN()); 
+    Eigen::Vector3d location = Eigen::Vector3d::Constant(std::numeric_limits<double>::quiet_NaN());
+};
+/**
  * @brief Struct designed to contain the description of a robot in terms of its screw list, end-effector homogenous
  * transformation matrix, and current joint states
  */
@@ -180,7 +187,7 @@ struct ScrewInfoFrom
  */
 struct ScrewInfo
 {
-    ScrewType type = affordance_util::ScrewType::UNSET;                                                          // Screw type
+    ScrewType type = affordance_util::ScrewType::UNSET;  // Screw type
     Eigen::Vector3d axis = Eigen::Vector3d::Constant(std::numeric_limits<double>::quiet_NaN()); // Screw axis
     Eigen::Vector3d location =
         Eigen::Vector3d::Constant(std::numeric_limits<double>::quiet_NaN()); // Screw location from a frame of interest
@@ -612,7 +619,7 @@ std::vector<Eigen::Matrix4d> compute_se3_screw_trajectory(const ScrewInfo &si, d
 Eigen::Vector3d axis_to_vec(const affordance_util::Axis& axis);
 
 /**
- * @brief Computes the screw-based affordance pose and axis using forward kinematics.
+ * @brief Computes the screw-based affordance axis and location using forward kinematics.
  *
  * Uses the robot’s current joint states to evaluate forward kinematics from the base to the tool frame,
  * then applies any optional post-transform and axis selection specified in the input affordance info.
@@ -622,10 +629,10 @@ Eigen::Vector3d axis_to_vec(const affordance_util::Axis& axis);
  * @param robot_description RobotDescription containing the robot space-form screw list, M matrix indicating FK at home config, 
  *        and current joint states.
  *
- * @return ScrewInfo with the `location` and `axis` fields populated according to the forward kinematics 
+ * @return VecInfo representing the affordance with the `location` and `axis` fields populated according to the forward kinematics 
  *         and any additional transformations or axis selections applied. 
  */
-affordance_util::ScrewInfo get_affordance_info_from_fk(const affordance_util::ScrewInfoFrom& affordance_info_from, const affordance_util::RobotDescription& robot_description);
+affordance_util::VecInfo get_affordance_info_from_fk(const affordance_util::ScrewInfoFrom& affordance_info_from, const affordance_util::RobotDescription& robot_description);
 
 /**
  * @brief Computes the forward kinematics for a given pose specification and applies any post-transform.

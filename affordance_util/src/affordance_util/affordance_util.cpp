@@ -890,14 +890,14 @@ Eigen::Vector3d axis_to_vec(const affordance_util::Axis& axis)
     }
 }
 
-affordance_util::ScrewInfo get_affordance_info_from_fk(const affordance_util::ScrewInfoFrom& affordance_info_from, const affordance_util::RobotDescription& robot_description){
+affordance_util::VecInfo get_affordance_info_from_fk(const affordance_util::ScrewInfoFrom& affordance_info_from, const affordance_util::RobotDescription& robot_description){
 
    if (affordance_info_from.method!=affordance_util::PoseSpecificationMethod::FROM_FK){
        throw std::runtime_error("Cannot get affordance info from FK if the 'method' field is not 'FROM_FK'");
    }
 
    // Function output
-   affordance_util::ScrewInfo affordance_info_from_fk;
+   affordance_util::VecInfo affordance_info_from_fk;
 
    // Compute forward kinematics
    const Eigen::Matrix4d T_ref_to_fk =

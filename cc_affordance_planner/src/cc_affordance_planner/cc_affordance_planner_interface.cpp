@@ -55,17 +55,15 @@ PlannerResult CcAffordancePlannerInterface::generate_joint_trajectory(
 
     // Extract task description
     // Affordance info -- handle if asked to get from FK
-    affordance_util::ScrewInfo aff;
+    affordance_util::ScrewInfo aff = task_description.affordance_info;
     if (task_description.affordance_info_from.method==affordance_util::PoseSpecificationMethod::FROM_FK){
-        aff = affordance_util::get_affordance_info_from_fk(task_description.affordance_info_from, robot_description);
-        // If affordance_info_from did not specify axis in final pose, the user must have provided it in the original affordance_info
-        if (task_description.affordance_info_from.axis_in_final_pose.hasNaN()){
-	    aff.axis = task_description.affordance_info.axis;
+	const affordance_util::VecInfo vec_info = affordance_util::get_affordance_info_from_fk(task_description.affordance_info_from, robot_description);
+        // If available, use axis info from FK. If it is not provided here, it means it was provided in affordance_info and we keep that.
+        if (!vec_info.axis.hasNaN()){
+	    aff.axis = vec_info.axis;
 	} 
     }
-    else {
-        aff = task_description.affordance_info;
-    }
+
     const affordance_util::VirtualScrewOrder vir_screw_order = task_description.vir_screw_order;
 
     // Compute the nof secondary joints

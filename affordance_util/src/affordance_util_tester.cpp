@@ -439,7 +439,7 @@ int main()
         // Optionally apply a small post-transform (e.g., 10cm along X)
         screw_info_from.post_transform = Eigen::Isometry3d(Eigen::AngleAxisd(M_PI / 2.0, Eigen::Vector3d::UnitZ())).matrix();
 
-        affordance_util::ScrewInfo updated = get_affordance_info_from_fk(screw_info_from, robot_description);
+        affordance_util::VecInfo updated = get_affordance_info_from_fk(screw_info_from, robot_description);
     
         // Print results
         std::cout << "Location: " << updated.location.transpose() << std::endl;
@@ -451,7 +451,7 @@ int main()
         {
         screw_info_from.post_transform = Eigen::Matrix4d::Identity();
         screw_info_from.post_transform(0, 3) = 0.1;
-        affordance_util::ScrewInfo updated = get_affordance_info_from_fk(screw_info_from, robot_description);
+        affordance_util::VecInfo updated = get_affordance_info_from_fk(screw_info_from, robot_description);
 
         std::cout << "Location: " << updated.location.transpose() << std::endl;
         std::cout << "Axis: " << updated.axis.transpose() << std::endl;
