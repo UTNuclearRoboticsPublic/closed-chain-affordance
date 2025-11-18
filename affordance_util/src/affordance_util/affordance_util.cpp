@@ -92,26 +92,12 @@ CcModel compose_cc_model_slist(const RobotDescription &robot_description, const 
         aff.screw = affordance_util::get_screw(aff);
     }
 
-    // If pure rotation, the motion of the last closed-chain joint is in the opposite direction of the affordance
-    // since the ground link is fixed and it is the affordance link that moves instead
-    Eigen::VectorXd aff_screw(6);
-
-    if (aff.type == ScrewType::ROTATION)
-    {
-        aff_screw = -aff.screw;
-    }
-    else
-    {
-
-        aff_screw = aff.screw;
-    }
-
     if (vir_screw_order == VirtualScrewOrder::NONE)
     {
         const size_t nof_sjoints = 2; // approach screw and affordance
         cc_model.slist.conservativeResize(robot_description.slist.rows(),
                                           (robot_description.slist.cols() + nof_sjoints));
-        cc_model.slist << robot_jacobian, approach_screw, aff_screw;
+        cc_model.slist << robot_jacobian, approach_screw, aff.screw;
     }
     else
     {
@@ -142,7 +128,7 @@ CcModel compose_cc_model_slist(const RobotDescription &robot_description, const 
         // Altogether
         cc_model.slist.conservativeResize(robot_description.slist.rows(),
                                           (robot_description.slist.cols() + nof_sjoints));
-        cc_model.slist << robot_jacobian, vir_slist, approach_screw, aff_screw;
+        cc_model.slist << robot_jacobian, vir_slist, approach_screw, aff.screw;
     }
 
     return cc_model;
@@ -169,25 +155,11 @@ Eigen::MatrixXd compose_cc_model_slist(const RobotDescription &robot_description
         aff.screw = affordance_util::get_screw(aff);
     }
 
-    // If pure rotation, the motion of the last closed-chain joint is in the opposite direction of the affordance
-    // since the ground link is fixed and it is the affordance link that moves instead
-    Eigen::VectorXd aff_screw(6);
-
-    if (aff.type == ScrewType::ROTATION)
-    {
-        aff_screw = -aff.screw;
-    }
-    else
-    {
-
-        aff_screw = aff.screw;
-    }
-
     if (vir_screw_order == VirtualScrewOrder::NONE)
     {
         const size_t nof_sjoints = 1; // 1 for one affordance
         slist.conservativeResize(robot_description.slist.rows(), (robot_description.slist.cols() + nof_sjoints));
-        slist << robot_jacobian, aff_screw;
+        slist << robot_jacobian, aff.screw;
     }
     else
     {
@@ -216,7 +188,7 @@ Eigen::MatrixXd compose_cc_model_slist(const RobotDescription &robot_description
 
         // Altogether
         slist.conservativeResize(robot_description.slist.rows(), (robot_description.slist.cols() + nof_sjoints));
-        slist << robot_jacobian, vir_slist, aff_screw;
+        slist << robot_jacobian, vir_slist, aff.screw;
     }
 
     return slist;
