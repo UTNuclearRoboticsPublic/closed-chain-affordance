@@ -934,4 +934,18 @@ Eigen::Matrix4d get_pose_from_fk(const affordance_util::PoseFrom& pose_from, con
    return T_ref_to_final;
 }
 
+Eigen::MatrixXd clamp_to_magnitude_minimum(const Eigen::MatrixXd& mat, double min_magnitude) {
+
+    // Get sign of each component
+    Eigen::MatrixXd signs = mat.cwiseSign();
+    signs = (signs.array() == 0.0).select(1.0, signs); // Treat zeros as positive
+
+    // Get magnitudes and clamp to minimum
+    Eigen::MatrixXd magnitudes = mat.cwiseAbs();
+    magnitudes = magnitudes.cwiseMax(min_magnitude);
+
+    // Return with signs preserved
+    return signs.cwiseProduct(magnitudes);
+}
+
 } // namespace affordance_util

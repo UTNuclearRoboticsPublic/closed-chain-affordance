@@ -643,6 +643,27 @@ affordance_util::ScrewInfo get_affordance_info_from_fk(const affordance_util::Sc
  */
 Eigen::Matrix4d get_pose_from_fk(const affordance_util::PoseFrom& pose_from, const affordance_util::RobotDescription& robot_description);
 
+/**
+ * @brief Clamps each element to have at least a minimum magnitude while preserving sign.
+ * 
+ * Ensures that no element in the matrix/vector has an absolute value smaller than
+ * the specified minimum magnitude. Elements closer to zero than min_magnitude are
+ * pushed away to exactly min_magnitude while preserving their original sign.
+ * Zero values are clamped to positive min_magnitude.
+ * 
+ * @param mat Input matrix or vector
+ * @param min_magnitude Minimum allowed magnitude for each element (must be >= 0)
+ * @return Matrix/vector with all elements clamped to minimum magnitude
+ * 
+ * @example
+ * Eigen::VectorXd vec(4);
+ * vec << 0.0001, -0.0005, 2.0, 0.0;
+ * vec = clamp_to_magnitude_minimum(vec, 0.001);
+ * // Result: (0.001, -0.001, 2.0, 0.001)
+ * // 0.0001 clamped to 0.001, -0.0005 clamped to -0.001, 0.0 clamped to 0.001
+ */
+Eigen::MatrixXd clamp_to_magnitude_minimum(const Eigen::MatrixXd& mat, double min_magnitude);
+
 }; // namespace affordance_util
 
 #endif // AFFORDANCE_UTIL

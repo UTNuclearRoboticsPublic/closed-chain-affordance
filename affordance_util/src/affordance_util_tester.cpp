@@ -488,6 +488,29 @@ int main()
         std::cout << "Final Pose:\n" << result << std::endl;
     }
 
+    {
+        std::cout << "\nTesting clamp_to_magnitude_minimum" << std::endl;
+        
+        // Test case 1: Vector with small values
+        double min_mag1 = 0.001;
+        const Eigen::VectorXd V1 = (Eigen::VectorXd(5) << 0.0001, -0.0005, 2.0, -3.5, 0.0).finished();
+        std::cout << "Input 1: \n" << V1.transpose() << std::endl;
+        std::cout << "Output 1 (min_mag=" << min_mag1 << "): \n" << clamp_to_magnitude_minimum(V1, min_mag1).transpose() << std::endl;
+        
+        // Test case 2: Vector3d
+        double min_mag2 = 0.01;
+        const Eigen::Vector3d V2(0.00001, -0.1, 5.0);
+        std::cout << "\nInput 2: \n" << V2.transpose() << std::endl;
+        std::cout << "Output 2 (min_mag=" << min_mag2 << "): \n" << clamp_to_magnitude_minimum(V2, min_mag2).transpose() << std::endl;
+        
+        // Test case 3: Matrix
+        double min_mag3 = 0.001;
+        const Eigen::MatrixXd M = (Eigen::MatrixXd(2, 3) << 0.0001, -0.0002, 1.5, 
+                                                             -2.0, 0.0, 0.00005).finished();
+        std::cout << "\nInput 3 (Matrix): \n" << M << std::endl;
+        std::cout << "Output 3 (min_mag=" << min_mag3 << "): \n" << clamp_to_magnitude_minimum(M, min_mag3) << std::endl;
+    }
+
 
 
 
