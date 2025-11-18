@@ -56,8 +56,12 @@ PlannerResult CcAffordancePlannerInterface::generate_joint_trajectory(
     // Extract task description
     // Affordance info -- handle if asked to get from FK
     affordance_util::ScrewInfo aff;
-    if (task_description.affordance_info.from.method==affordance_util::PoseSpecificationMethod::FROM_FK){
-        aff = affordance_util::get_affordance_info_from_fk(task_description.affordance_info, robot_description);
+    if (task_description.affordance_info_from.method==affordance_util::PoseSpecificationMethod::FROM_FK){
+        aff = affordance_util::get_affordance_info_from_fk(task_description.affordance_info_from, robot_description);
+        // If affordance_info_from did not specify axis in final pose, the user must have provided it in the original affordance_info
+        if (task_description.affordance_info_from.axis_in_final_pose.hasNaN()){
+	    aff.axis = task_description.affordance_info.axis;
+	} 
     }
     else {
         aff = task_description.affordance_info;
@@ -371,7 +375,7 @@ void CcAffordancePlannerInterface::validate_input_(const affordance_util::RobotD
         throw std::invalid_argument("Task description: 'affordance_info.type' must be specified.");
     }
 
-    if (task_description.affordance_info.from.method != affordance_util::PoseSpecificationMethod::FROM_FK &&
+    if (task_description.affordance_info_from.method != affordance_util::PoseSpecificationMethod::FROM_FK &&
         ((task_description.affordance_info.axis.hasNaN() ||
          task_description.affordance_info.location.hasNaN()) && task_description.affordance_info.screw.hasNaN()))
     {
@@ -379,11 +383,11 @@ void CcAffordancePlannerInterface::validate_input_(const affordance_util::RobotD
                                     "or 'affordance_info.screw' must be specified.");
     }
 
-    if (task_description.affordance_info.from.method == affordance_util::PoseSpecificationMethod::FROM_FK &&
-        (task_description.affordance_info.axis.hasNaN() && task_description.affordance_info.from.axis_in_final_pose.hasNaN()))
+    if (task_description.affordance_info_from.method == affordance_util::PoseSpecificationMethod::FROM_FK &&
+        (task_description.affordance_info.axis.hasNaN() && task_description.affordance_info_from.axis_in_final_pose.hasNaN()))
     {
         throw std::invalid_argument(
-            "Task description: For 'affordance_info.method = FROM_FK', either 'affordance_info.axis' or 'affordance_info.from.axis_in_final_pose' must be specified.");
+            "Task description: For 'affordance_info_from.method = FROM_FK', either 'affordance_info.axis' or 'affordance_info_from.axis_in_final_pose' must be specified.");
     }
 
     if (task_description.affordance_info.type == affordance_util::ScrewType::SCREW &&

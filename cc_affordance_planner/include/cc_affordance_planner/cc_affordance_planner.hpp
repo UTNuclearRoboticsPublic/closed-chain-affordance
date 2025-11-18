@@ -100,6 +100,7 @@ struct TaskDescription
     affordance_util::VirtualScrewOrder vir_screw_order = affordance_util::VirtualScrewOrder::XYZ;
     affordance_util::GripperGoalType gripper_goal_type = affordance_util::GripperGoalType::CONSTANT;
     EeOrientationConstraint ee_orientation_constraint = EeOrientationConstraint::DEFAULT;
+    affordance_util::ScrewInfoFrom affordance_info_from; // Get affordance info from specified method
     affordance_util::PoseFrom canonical_pose_from; // Get canonical pose from specified method
 
     /**
