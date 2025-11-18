@@ -890,29 +890,28 @@ Eigen::Vector3d axis_to_vec(const affordance_util::Axis& axis)
     }
 }
 
-affordance_util::ScrewInfo get_affordance_info_from_fk(const affordance_util::ScrewInfo& affordance_info, const affordance_util::RobotDescription& robot_description){
+affordance_util::ScrewInfo get_affordance_info_from_fk(const affordance_util::ScrewInfoFrom& affordance_info_from, const affordance_util::RobotDescription& robot_description){
 
-   if (affordance_info.from.method!=affordance_util::PoseSpecificationMethod::FROM_FK){
+   if (affordance_info_from.method!=affordance_util::PoseSpecificationMethod::FROM_FK){
        throw std::runtime_error("Cannot get affordance info from FK if the 'method' field is not 'FROM_FK'");
    }
 
    // Function output
-   affordance_util::ScrewInfo affordance_info_from_fk = affordance_info;
-   affordance_info_from_fk.from = affordance_util::ScrewInfoFrom(); // Reset from info for output
+   affordance_util::ScrewInfo affordance_info_from_fk;
 
    // Compute forward kinematics
    const Eigen::Matrix4d T_ref_to_fk =
        FKinSpace(robot_description.M, robot_description.slist, robot_description.joint_states);
 
    // Apply post-transform
-   const Eigen::Isometry3d T_ref_to_aff = Eigen::Isometry3d(T_ref_to_fk * affordance_info.from.post_transform);
+   const Eigen::Isometry3d T_ref_to_aff = Eigen::Isometry3d(T_ref_to_fk * affordance_info_from.post_transform);
 
    // Extract translation from the transform
    affordance_info_from_fk.location = T_ref_to_aff.translation();	
 
    // Compute what the specified axis would be in the reference frame
-   if (!affordance_info.from.axis_in_final_pose.hasNaN()){
-       affordance_info_from_fk.axis = T_ref_to_aff.linear() * affordance_info.from.axis_in_final_pose;
+   if (!affordance_info_from.axis_in_final_pose.hasNaN()){
+       affordance_info_from_fk.axis = T_ref_to_aff.linear() * affordance_info_from.axis_in_final_pose;
    }
 
    return affordance_info_from_fk;

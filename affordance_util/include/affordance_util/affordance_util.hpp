@@ -187,7 +187,6 @@ struct ScrewInfo
     Eigen::VectorXd screw =
         Eigen::Matrix<double, 6, 1>::Constant(std::numeric_limits<double>::quiet_NaN()); // Screw vector
     double pitch = std::numeric_limits<double>::quiet_NaN(); // Pitch of the screw. Default is rotation, i.e. 0
-    affordance_util::ScrewInfoFrom from; // Get screw info from specified method
 };
 
 /**
@@ -618,16 +617,15 @@ Eigen::Vector3d axis_to_vec(const affordance_util::Axis& axis);
  * Uses the robot’s current joint states to evaluate forward kinematics from the base to the tool frame,
  * then applies any optional post-transform and axis selection specified in the input affordance info.
  *
- * @param affordance_info ScrewInfo with `from.method` set to `FROM_FK`, optionally including
+ * @param affordance_info_from ScrewInfoFrom with `method` set to `FROM_FK`, optionally including
  *        a `post_transform` and `axis_in_final_pose` specification.
  * @param robot_description RobotDescription containing the robot space-form screw list, M matrix indicating FK at home config, 
  *        and current joint states.
  *
  * @return ScrewInfo with the `location` and `axis` fields populated according to the forward kinematics 
- *         and any additional transformations or axis selections applied. The from field in the screw info 
- *         is reset to default to indicate screw info is now provided.
+ *         and any additional transformations or axis selections applied. 
  */
-affordance_util::ScrewInfo get_affordance_info_from_fk(const affordance_util::ScrewInfo& affordance_info, const affordance_util::RobotDescription& robot_description);
+affordance_util::ScrewInfo get_affordance_info_from_fk(const affordance_util::ScrewInfoFrom& affordance_info_from, const affordance_util::RobotDescription& robot_description);
 
 /**
  * @brief Computes the forward kinematics for a given pose specification and applies any post-transform.

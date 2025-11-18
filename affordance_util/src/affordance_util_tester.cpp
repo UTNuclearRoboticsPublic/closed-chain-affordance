@@ -423,23 +423,23 @@ int main()
 
         std::cout << "FK: \n" << robot_description.M << std::endl;
 
-        affordance_util::ScrewInfo screw_info;
+        affordance_util::ScrewInfoFrom screw_info_from;
     
         // Set the method to FROM_FK
-        screw_info.from.method = affordance_util::PoseSpecificationMethod::FROM_FK;
+        screw_info_from.method = affordance_util::PoseSpecificationMethod::FROM_FK;
     
 
         // Ask for +Z axis in final pose
-        screw_info.from.axis_in_final_pose = affordance_util::axis_to_vec(affordance_util::Axis::X);
-        std::cout << "Axis in final pose: " << screw_info.from.axis_in_final_pose.transpose() << std::endl;
+        screw_info_from.axis_in_final_pose = affordance_util::axis_to_vec(affordance_util::Axis::X);
+        std::cout << "Axis in final pose: " << screw_info_from.axis_in_final_pose.transpose() << std::endl;
     
         // Call function
         std::cout << "With post-transform as 90deg rotation about z-axis only:" << std::endl;
         {
         // Optionally apply a small post-transform (e.g., 10cm along X)
-        screw_info.from.post_transform = Eigen::Isometry3d(Eigen::AngleAxisd(M_PI / 2.0, Eigen::Vector3d::UnitZ())).matrix();
+        screw_info_from.post_transform = Eigen::Isometry3d(Eigen::AngleAxisd(M_PI / 2.0, Eigen::Vector3d::UnitZ())).matrix();
 
-        affordance_util::ScrewInfo updated = get_affordance_info_from_fk(screw_info, robot_description);
+        affordance_util::ScrewInfo updated = get_affordance_info_from_fk(screw_info_from, robot_description);
     
         // Print results
         std::cout << "Location: " << updated.location.transpose() << std::endl;
@@ -449,9 +449,9 @@ int main()
         // Now call again to test translation-only post-transform
         std::cout << "With post-transform as 10cm shift along x axis only:" << std::endl;
         {
-        screw_info.from.post_transform = Eigen::Matrix4d::Identity();
-        screw_info.from.post_transform(0, 3) = 0.1;
-        affordance_util::ScrewInfo updated = get_affordance_info_from_fk(screw_info, robot_description);
+        screw_info_from.post_transform = Eigen::Matrix4d::Identity();
+        screw_info_from.post_transform(0, 3) = 0.1;
+        affordance_util::ScrewInfo updated = get_affordance_info_from_fk(screw_info_from, robot_description);
 
         std::cout << "Location: " << updated.location.transpose() << std::endl;
         std::cout << "Axis: " << updated.axis.transpose() << std::endl;
