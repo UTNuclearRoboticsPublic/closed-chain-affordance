@@ -314,7 +314,8 @@ class CcAffordancePlanner
     size_t nof_sjoints_;            // number of secondary joints
     double cond_N_threshold_ = 100; // condition number threshold for N to be considered singular
     bool dls_flag_ = false;         // flag indicating whether DLS method was used
-    double lambda_ = 1.1;           // damping factor for the DLS method
+    constexpr static double lambda_ = 1.1; // damping factor for the DLS method
+    constexpr static double goal_min_ = 1e-5; // minimum magnitude to clamp secondary goals to avoid numerical issues
 
   private:
     //--Planner config parameters
