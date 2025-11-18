@@ -85,6 +85,7 @@ enum class Axis{
     X_MINUS,
     Y_MINUS,
     Z_MINUS,
+    ORIGIN,
     MANUAL
 };
 
@@ -603,7 +604,7 @@ bool NearZero(const double &near);
 std::vector<Eigen::Matrix4d> compute_se3_screw_trajectory(const ScrewInfo &si, double theta_total, int trajectory_density, const Eigen::Matrix4d& T_start);
 
 /**
- * @brief Converts an affordance_util::Axis enum to a unit direction vector.
+ * @brief Converts an affordance_util::Axis enum to a unit direction vector. Also handles ORIGIN, which returns a zero vector.
  *
  * @param axis Direction enum (e.g., X, Y_MINUS).
  * @return Corresponding Eigen::Vector3d.

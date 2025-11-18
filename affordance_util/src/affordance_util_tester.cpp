@@ -385,6 +385,7 @@ int main()
             {Axis::X_MINUS, "X_MINUS"},
             {Axis::Y_MINUS, "Y_MINUS"},
             {Axis::Z_MINUS, "Z_MINUS"},
+            {Axis::ORIGIN, "ORIGIN"},
             {Axis::MANUAL, "MANUAL"}
         };
     
