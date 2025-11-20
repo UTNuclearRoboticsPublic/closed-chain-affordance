@@ -343,10 +343,25 @@ void CcAffordancePlannerInterface::validate_input_(const affordance_util::RobotD
         throw std::invalid_argument("Robot description: 'M' (palm HTM) must be specified.");
     }
 
-    double tolerance = 1e-4;
-    if (((!robot_description.M.block<3, 3>(0, 0).isUnitary(tolerance)) ||
-         (std::abs(robot_description.M(3, 3) - 1.0) > tolerance) ||
-         (!robot_description.M.row(3).head(3).isZero(tolerance))))
+    // Lambda to check if a matrix is a valid homogeneous transformation matrix
+    const double tolerance = 1e-4;
+    auto is_valid_htm = [tolerance](const Eigen::Matrix4d& T) -> bool {
+        const Eigen::Matrix3d R = T.block<3,3>(0,0);
+        
+        // Check if R is a proper rotation matrix
+        bool valid_rotation = 
+            R.isUnitary(tolerance) &&  // R^T * R = I
+            (std::abs(R.determinant() - 1.0) < tolerance);  // det(R) = +1
+        
+        // Check if bottom row is [0, 0, 0, 1]
+        bool valid_bottom = 
+            T.row(3).head(3).isZero(tolerance) &&
+            (std::abs(T(3,3) - 1.0) < tolerance);
+        
+        return valid_rotation && valid_bottom;
+    };
+
+    if (!is_valid_htm(robot_description.M))
     {
         throw std::invalid_argument("Robot description: 'M' is not a valid transformation matrix.");
     }
@@ -408,15 +423,11 @@ void CcAffordancePlannerInterface::validate_input_(const affordance_util::RobotD
         throw std::invalid_argument("Task description: 'goal.affordance' must be specified and cannot be NaN.");
     }
 
-    /* if ((task_description.motion_type == MotionType::APPROACH) && */
-    /*     ((!task_description.goal.canonical_pose.block<3, 3>(0, 0).isUnitary(tolerance)) || */
-    /*      (std::abs(task_description.goal.canonical_pose(3, 3) - 1.0) > tolerance) || */
-    /*      (!task_description.goal.canonical_pose.row(3).head(3).isZero(tolerance)))) */
-    /* { */
-    /*     throw std::invalid_argument("Task description: 'canonical_pose' is not a valid transformation matrix. Valid canonical
-     * " */
-    /*                                 "pose is needed for approach motion."); */
-    /* } */
+    if ((task_description.motion_type == MotionType::APPROACH) && (!is_valid_htm(task_description.goal.canonical_pose)))
+    {
+        throw std::invalid_argument("Task description: 'canonical_pose' is not a valid transformation matrix. "
+            "Valid canonical pose is needed for approach motion.");
+    }
 
     if (task_description.trajectory_density < 2)
     {
