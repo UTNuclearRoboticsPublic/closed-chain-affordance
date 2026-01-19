@@ -85,10 +85,6 @@ CcModel compose_cc_model_slist(const RobotDescription &robot_description, const 
 
     // If aff info says to extract location from FK, do that
     ScrewInfo aff = aff_info;
-    if (aff.location_method == ScrewLocationMethod::FROM_FK)
-    {
-        aff.location = ee_location;
-    }
 
     // In case aff screw is not set, compute it
     if (aff.screw.hasNaN())
@@ -96,26 +92,12 @@ CcModel compose_cc_model_slist(const RobotDescription &robot_description, const 
         aff.screw = affordance_util::get_screw(aff);
     }
 
-    // If pure rotation, the motion of the last closed-chain joint is in the opposite direction of the affordance
-    // since the ground link is fixed and it is the affordance link that moves instead
-    Eigen::VectorXd aff_screw(6);
-
-    if (aff.type == ScrewType::ROTATION)
-    {
-        aff_screw = -aff.screw;
-    }
-    else
-    {
-
-        aff_screw = aff.screw;
-    }
-
     if (vir_screw_order == VirtualScrewOrder::NONE)
     {
         const size_t nof_sjoints = 2; // approach screw and affordance
         cc_model.slist.conservativeResize(robot_description.slist.rows(),
                                           (robot_description.slist.cols() + nof_sjoints));
-        cc_model.slist << robot_jacobian, approach_screw, aff_screw;
+        cc_model.slist << robot_jacobian, approach_screw, aff.screw;
     }
     else
     {
@@ -146,7 +128,7 @@ CcModel compose_cc_model_slist(const RobotDescription &robot_description, const 
         // Altogether
         cc_model.slist.conservativeResize(robot_description.slist.rows(),
                                           (robot_description.slist.cols() + nof_sjoints));
-        cc_model.slist << robot_jacobian, vir_slist, approach_screw, aff_screw;
+        cc_model.slist << robot_jacobian, vir_slist, approach_screw, aff.screw;
     }
 
     return cc_model;
@@ -167,36 +149,17 @@ Eigen::MatrixXd compose_cc_model_slist(const RobotDescription &robot_description
     // If aff info says to extract location from FK, do that
     ScrewInfo aff = aff_info;
 
-    if (aff.location_method == ScrewLocationMethod::FROM_FK)
-    {
-        aff.location = ee_location;
-    }
-
     // In case aff screw is not set, compute it
     if (aff.screw.hasNaN())
     {
         aff.screw = affordance_util::get_screw(aff);
     }
 
-    // If pure rotation, the motion of the last closed-chain joint is in the opposite direction of the affordance
-    // since the ground link is fixed and it is the affordance link that moves instead
-    Eigen::VectorXd aff_screw(6);
-
-    if (aff.type == ScrewType::ROTATION)
-    {
-        aff_screw = -aff.screw;
-    }
-    else
-    {
-
-        aff_screw = aff.screw;
-    }
-
     if (vir_screw_order == VirtualScrewOrder::NONE)
     {
         const size_t nof_sjoints = 1; // 1 for one affordance
         slist.conservativeResize(robot_description.slist.rows(), (robot_description.slist.cols() + nof_sjoints));
-        slist << robot_jacobian, aff_screw;
+        slist << robot_jacobian, aff.screw;
     }
     else
     {
@@ -225,7 +188,7 @@ Eigen::MatrixXd compose_cc_model_slist(const RobotDescription &robot_description
 
         // Altogether
         slist.conservativeResize(robot_description.slist.rows(), (robot_description.slist.cols() + nof_sjoints));
-        slist << robot_jacobian, vir_slist, aff_screw;
+        slist << robot_jacobian, vir_slist, aff.screw;
     }
 
     return slist;
@@ -489,11 +452,11 @@ RobotConfig robot_builder(const std::string &urdf_string, const RobotConfig& rob
             JointData joint;
             if (joint_node->type == urdf::Joint::REVOLUTE || joint_node->type == urdf::Joint::CONTINUOUS)
             {
-                joint.screw_info.type = affordance_util::ROTATION;
+                joint.screw_info.type = affordance_util::ScrewType::ROTATION;
             }
             else if (joint_node->type == urdf::Joint::PRISMATIC)
             {
-                joint.screw_info.type = affordance_util::TRANSLATION;
+                joint.screw_info.type = affordance_util::ScrewType::TRANSLATION;
             }
             else
             {
@@ -909,6 +872,80 @@ std::vector<Eigen::Matrix4d> compute_se3_screw_trajectory(const ScrewInfo& si, d
   }
 
   return T_path;
+}
+
+Eigen::Vector3d axis_to_vec(const affordance_util::Axis& axis)
+{
+    switch (axis)
+    {
+    case Axis::X:        return Eigen::Vector3d::UnitX();
+    case Axis::Y:        return Eigen::Vector3d::UnitY();
+    case Axis::Z:        return Eigen::Vector3d::UnitZ();
+    case Axis::X_MINUS:  return -1.0 * Eigen::Vector3d::UnitX();
+    case Axis::Y_MINUS:  return -1.0 * Eigen::Vector3d::UnitY();
+    case Axis::Z_MINUS:  return -1.0 * Eigen::Vector3d::UnitZ();
+    case Axis::ORIGIN:   return Eigen::Vector3d::Zero();
+    default:
+        throw std::runtime_error("Axis::MANUAL or unknown value has no predefined direction. Use a custom vector.");
+    }
+}
+
+affordance_util::VecInfo get_affordance_info_from_fk(const affordance_util::ScrewInfoFrom& affordance_info_from, const affordance_util::RobotDescription& robot_description){
+
+   if (affordance_info_from.method!=affordance_util::PoseSpecificationMethod::FROM_FK){
+       throw std::runtime_error("Cannot get affordance info from FK if the 'method' field is not 'FROM_FK'");
+   }
+
+   // Function output
+   affordance_util::VecInfo affordance_info_from_fk;
+
+   // Compute forward kinematics
+   const Eigen::Matrix4d T_ref_to_fk =
+       FKinSpace(robot_description.M, robot_description.slist, robot_description.joint_states);
+
+   // Apply post-transform
+   const Eigen::Isometry3d T_ref_to_aff = Eigen::Isometry3d(T_ref_to_fk * affordance_info_from.post_transform);
+
+   // Extract translation from the transform
+   affordance_info_from_fk.location = T_ref_to_aff.translation();	
+
+   // Compute what the specified axis would be in the reference frame
+   if (!affordance_info_from.axis_in_final_pose.hasNaN()){
+       affordance_info_from_fk.axis = T_ref_to_aff.linear() * affordance_info_from.axis_in_final_pose;
+   }
+
+   return affordance_info_from_fk;
+
+}
+
+Eigen::Matrix4d get_pose_from_fk(const affordance_util::PoseFrom& pose_from, const affordance_util::RobotDescription& robot_description){
+
+    if (pose_from.method != affordance_util::PoseSpecificationMethod::FROM_FK) {
+        throw std::runtime_error("Cannot get pose from FK if the 'method' field is not 'FROM_FK'");
+    }
+
+   // Compute forward kinematics
+   const Eigen::Matrix4d T_ref_to_fk =
+       FKinSpace(robot_description.M, robot_description.slist, robot_description.joint_states);
+
+   // Apply post-transform
+   const Eigen::Matrix4d T_ref_to_final = T_ref_to_fk * pose_from.post_transform;
+
+   return T_ref_to_final;
+}
+
+Eigen::MatrixXd clamp_to_magnitude_minimum(const Eigen::MatrixXd& mat, double min_magnitude) {
+
+    // Get sign of each component
+    Eigen::MatrixXd signs = mat.cwiseSign();
+    signs = (signs.array() == 0.0).select(1.0, signs); // Treat zeros as positive
+
+    // Get magnitudes and clamp to minimum
+    Eigen::MatrixXd magnitudes = mat.cwiseAbs();
+    magnitudes = magnitudes.cwiseMax(min_magnitude);
+
+    // Return with signs preserved
+    return signs.cwiseProduct(magnitudes);
 }
 
 } // namespace affordance_util

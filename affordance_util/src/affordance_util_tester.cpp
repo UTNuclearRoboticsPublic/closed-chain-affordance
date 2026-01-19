@@ -375,6 +375,145 @@ int main()
     	  std::cout << "T[" << i << "] =\n" << T_traj[i] << "\n\n";
     	}
     }
+    {
+        std::cout << "\nTesting axis_to_vec\n" << std::endl;
+    
+        std::vector<std::pair<Axis, std::string>> test_axes = {
+            {Axis::X, "X"},
+            {Axis::Y, "Y"},
+            {Axis::Z, "Z"},
+            {Axis::X_MINUS, "X_MINUS"},
+            {Axis::Y_MINUS, "Y_MINUS"},
+            {Axis::Z_MINUS, "Z_MINUS"},
+            {Axis::ORIGIN, "ORIGIN"},
+            {Axis::MANUAL, "MANUAL"}
+        };
+    
+        for (const auto &[axis_enum, axis_name] : test_axes)
+        {
+            std::cout << "Axis: " << axis_name << " -> ";
+            try
+            {
+                Eigen::Vector3d vec = axis_to_vec(axis_enum);
+                std::cout << vec.transpose() << std::endl;
+            }
+            catch (const std::exception &e)
+            {
+                std::cout << "Error: " << e.what() << std::endl;
+            }
+        }
+    }
+
+    {
+    	std::cout << "\nTesting get_affordance_info_from_fk" << std::endl;
+
+        // We'll use Spot's robot description
+        affordance_util::RobotDescription robot_description;
+        try {
+            std::filesystem::path spot_urdf_yaml_path = project_root / "test" / "cca_spot_urdf.yaml";
+	    auto spot_urdf_robot_builder_info = extract_info_for_urdf_robot_builder(spot_urdf_yaml_path.string());
+            auto robot_config = robot_builder(spot_urdf_string, spot_urdf_robot_builder_info);
+            robot_description.slist = robot_config.Slist;
+            robot_description.M = robot_config.M;
+            robot_description.joint_states = Eigen::VectorXd::Zero(robot_config.joint_names.robot.size()); // just set to zero
+	}catch (const std::exception &e)
+        {
+            std::cerr << "Error building robot: " << e.what() << std::endl;
+        }
+
+        std::cout << "FK: \n" << robot_description.M << std::endl;
+
+        affordance_util::ScrewInfoFrom screw_info_from;
+    
+        // Set the method to FROM_FK
+        screw_info_from.method = affordance_util::PoseSpecificationMethod::FROM_FK;
+    
+
+        // Ask for +Z axis in final pose
+        screw_info_from.axis_in_final_pose = affordance_util::axis_to_vec(affordance_util::Axis::X);
+        std::cout << "Axis in final pose: " << screw_info_from.axis_in_final_pose.transpose() << std::endl;
+    
+        // Call function
+        std::cout << "With post-transform as 90deg rotation about z-axis only:" << std::endl;
+        {
+        // Optionally apply a small post-transform (e.g., 10cm along X)
+        screw_info_from.post_transform = Eigen::Isometry3d(Eigen::AngleAxisd(M_PI / 2.0, Eigen::Vector3d::UnitZ())).matrix();
+
+        affordance_util::VecInfo updated = get_affordance_info_from_fk(screw_info_from, robot_description);
+    
+        // Print results
+        std::cout << "Location: " << updated.location.transpose() << std::endl;
+        std::cout << "Axis: " << updated.axis.transpose() << std::endl;
+	}
+
+        // Now call again to test translation-only post-transform
+        std::cout << "With post-transform as 10cm shift along x axis only:" << std::endl;
+        {
+        screw_info_from.post_transform = Eigen::Matrix4d::Identity();
+        screw_info_from.post_transform(0, 3) = 0.1;
+        affordance_util::VecInfo updated = get_affordance_info_from_fk(screw_info_from, robot_description);
+
+        std::cout << "Location: " << updated.location.transpose() << std::endl;
+        std::cout << "Axis: " << updated.axis.transpose() << std::endl;
+        }
+    }
+    {
+        std::cout << "\nTesting get_pose_from_fk\n" << std::endl;
+
+        // We'll use Spot's robot description
+        affordance_util::RobotDescription robot_description;
+        try {
+            std::filesystem::path spot_urdf_yaml_path = project_root / "test" / "cca_spot_urdf.yaml";
+	    auto spot_urdf_robot_builder_info = extract_info_for_urdf_robot_builder(spot_urdf_yaml_path.string());
+            auto robot_config = robot_builder(spot_urdf_string, spot_urdf_robot_builder_info);
+            robot_description.slist = robot_config.Slist;
+            robot_description.M = robot_config.M;
+            robot_description.joint_states = Eigen::VectorXd::Zero(robot_config.joint_names.robot.size()); // just set to zero
+	}catch (const std::exception &e)
+        {
+            std::cerr << "Error building robot: " << e.what() << std::endl;
+        }
+
+        std::cout << "FK: \n" << robot_description.M << std::endl;
+    
+        affordance_util::PoseFrom pose_from;
+        pose_from.method = affordance_util::PoseSpecificationMethod::FROM_FK;
+    
+        // Post-transform: 90 degrees about Z axis
+        pose_from.post_transform = Eigen::Matrix4d::Identity();
+        pose_from.post_transform = Eigen::Isometry3d(Eigen::AngleAxisd(M_PI / 2.0, Eigen::Vector3d::UnitZ())).matrix();
+    
+        Eigen::Matrix4d result = get_pose_from_fk(pose_from, robot_description);
+    
+        std::cout << "With post-transform as 90deg rotation about z-axis only:" << std::endl;
+        std::cout << "Final Pose:\n" << result << std::endl;
+    }
+
+    {
+        std::cout << "\nTesting clamp_to_magnitude_minimum" << std::endl;
+        
+        // Test case 1: Vector with small values
+        double min_mag1 = 0.001;
+        const Eigen::VectorXd V1 = (Eigen::VectorXd(5) << 0.0001, -0.0005, 2.0, -3.5, 0.0).finished();
+        std::cout << "Input 1: \n" << V1.transpose() << std::endl;
+        std::cout << "Output 1 (min_mag=" << min_mag1 << "): \n" << clamp_to_magnitude_minimum(V1, min_mag1).transpose() << std::endl;
+        
+        // Test case 2: Vector3d
+        double min_mag2 = 0.01;
+        const Eigen::Vector3d V2(0.00001, -0.1, 5.0);
+        std::cout << "\nInput 2: \n" << V2.transpose() << std::endl;
+        std::cout << "Output 2 (min_mag=" << min_mag2 << "): \n" << clamp_to_magnitude_minimum(V2, min_mag2).transpose() << std::endl;
+        
+        // Test case 3: Matrix
+        double min_mag3 = 0.001;
+        const Eigen::MatrixXd M = (Eigen::MatrixXd(2, 3) << 0.0001, -0.0002, 1.5, 
+                                                             -2.0, 0.0, 0.00005).finished();
+        std::cout << "\nInput 3 (Matrix): \n" << M << std::endl;
+        std::cout << "Output 3 (min_mag=" << min_mag3 << "): \n" << clamp_to_magnitude_minimum(M, min_mag3) << std::endl;
+    }
+
+
+
 
     return 0;
 }
