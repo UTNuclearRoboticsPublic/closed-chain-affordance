@@ -62,7 +62,7 @@ int main()
     // Affordance
     affordance_util::ScrewInfo aff;
     aff.type = affordance_util::ScrewType::ROTATION;
-    aff.axis = Eigen::Vector3d(1, 0, 0);
+    aff.axis = affordance_util::axis_to_vec(affordance_util::Axis::X_MINUS);
     aff.location = Eigen::Vector3d(L1 + L2, W3 - W4 + W6 + W2 + aff_offset, H1 - H2);
 
     // Robot start configuration, home position in this case

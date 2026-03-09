@@ -1,0 +1,16 @@
+# Provide the reference frame, kinematic chain, end effector and tool info
+# The following info is for the kinova_gen3_7dof robot
+ref_frame:
+  - name: base_link
+
+kinematic_chain:
+  - base_joint_name: joint_1
+    end_joint_name: joint_7
+
+end_effector:
+  - frame_name: end_effector_link
+    gripper_joint_name: robotiq_85_left_knuckle_joint # Unused but provide one valid gripper joint name
+
+tool: # This does not have to be in the URDF, and is usually located at the center of the palm.
+  - name: manual_grasp_link 
+    offset_from_ee_frame: [0, 0, 0.112] # Tool location in the EE frame

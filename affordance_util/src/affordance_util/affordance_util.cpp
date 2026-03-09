@@ -85,10 +85,6 @@ CcModel compose_cc_model_slist(const RobotDescription &robot_description, const 
 
     // If aff info says to extract location from FK, do that
     ScrewInfo aff = aff_info;
-    if (aff.location_method == ScrewLocationMethod::FROM_FK)
-    {
-        aff.location = ee_location;
-    }
 
     // In case aff screw is not set, compute it
     if (aff.screw.hasNaN())
@@ -96,26 +92,12 @@ CcModel compose_cc_model_slist(const RobotDescription &robot_description, const 
         aff.screw = affordance_util::get_screw(aff);
     }
 
-    // If pure rotation, the motion of the last closed-chain joint is in the opposite direction of the affordance
-    // since the ground link is fixed and it is the affordance link that moves instead
-    Eigen::VectorXd aff_screw(6);
-
-    if (aff.type == ScrewType::ROTATION)
-    {
-        aff_screw = -aff.screw;
-    }
-    else
-    {
-
-        aff_screw = aff.screw;
-    }
-
     if (vir_screw_order == VirtualScrewOrder::NONE)
     {
         const size_t nof_sjoints = 2; // approach screw and affordance
         cc_model.slist.conservativeResize(robot_description.slist.rows(),
                                           (robot_description.slist.cols() + nof_sjoints));
-        cc_model.slist << robot_jacobian, approach_screw, aff_screw;
+        cc_model.slist << robot_jacobian, approach_screw, aff.screw;
     }
     else
     {
@@ -146,7 +128,7 @@ CcModel compose_cc_model_slist(const RobotDescription &robot_description, const 
         // Altogether
         cc_model.slist.conservativeResize(robot_description.slist.rows(),
                                           (robot_description.slist.cols() + nof_sjoints));
-        cc_model.slist << robot_jacobian, vir_slist, approach_screw, aff_screw;
+        cc_model.slist << robot_jacobian, vir_slist, approach_screw, aff.screw;
     }
 
     return cc_model;
@@ -167,36 +149,17 @@ Eigen::MatrixXd compose_cc_model_slist(const RobotDescription &robot_description
     // If aff info says to extract location from FK, do that
     ScrewInfo aff = aff_info;
 
-    if (aff.location_method == ScrewLocationMethod::FROM_FK)
-    {
-        aff.location = ee_location;
-    }
-
     // In case aff screw is not set, compute it
     if (aff.screw.hasNaN())
     {
         aff.screw = affordance_util::get_screw(aff);
     }
 
-    // If pure rotation, the motion of the last closed-chain joint is in the opposite direction of the affordance
-    // since the ground link is fixed and it is the affordance link that moves instead
-    Eigen::VectorXd aff_screw(6);
-
-    if (aff.type == ScrewType::ROTATION)
-    {
-        aff_screw = -aff.screw;
-    }
-    else
-    {
-
-        aff_screw = aff.screw;
-    }
-
     if (vir_screw_order == VirtualScrewOrder::NONE)
     {
         const size_t nof_sjoints = 1; // 1 for one affordance
         slist.conservativeResize(robot_description.slist.rows(), (robot_description.slist.cols() + nof_sjoints));
-        slist << robot_jacobian, aff_screw;
+        slist << robot_jacobian, aff.screw;
     }
     else
     {
@@ -225,27 +188,28 @@ Eigen::MatrixXd compose_cc_model_slist(const RobotDescription &robot_description
 
         // Altogether
         slist.conservativeResize(robot_description.slist.rows(), (robot_description.slist.cols() + nof_sjoints));
-        slist << robot_jacobian, vir_slist, aff_screw;
+        slist << robot_jacobian, vir_slist, aff.screw;
     }
 
     return slist;
 }
+
 Eigen::Matrix4d convert_urdf_pose_to_matrix(const urdf::Pose &pose)
 {
     Eigen::Matrix4d transform = Eigen::Matrix4d::Identity();
-    Eigen::Matrix3d rotation_matrix;
 
-    // Convert URDF rotation (quaternion) to roll, pitch, yaw
+    // Convert URDF quaternion to roll, pitch, yaw
     double roll, pitch, yaw;
     pose.rotation.getRPY(roll, pitch, yaw);
 
-    // Create rotation matrix from RPY values
-    rotation_matrix =
-        (Eigen::AngleAxisd(roll, Eigen::Vector3d::UnitX()) * Eigen::AngleAxisd(pitch, Eigen::Vector3d::UnitY()) *
-         Eigen::AngleAxisd(yaw, Eigen::Vector3d::UnitZ()))
+    // ✅ URDF convention: R = Rz(yaw) * Ry(pitch) * Rx(roll)
+    Eigen::Matrix3d rotation_matrix =
+        (Eigen::AngleAxisd(yaw, Eigen::Vector3d::UnitZ()) *
+         Eigen::AngleAxisd(pitch, Eigen::Vector3d::UnitY()) *
+         Eigen::AngleAxisd(roll, Eigen::Vector3d::UnitX()))
             .matrix();
 
-    // Set the rotation part of the matrix
+    // Set the rotation part
     transform.block<3, 3>(0, 0) = rotation_matrix;
 
     // Set the translation part
@@ -413,7 +377,10 @@ RobotConfig robot_builder(const std::string &urdf_string, const RobotConfig& rob
     const std::string &ref_frame_name = robotConfig.frame_names.ref;
 
     // Base joint name
-    const std::string &base_joint_name = robotConfig.joint_names.robot[0];
+    const std::string &base_joint_name = robotConfig.kinematic_chain.base_joint_name;
+
+    // End joint name
+    const std::string &end_joint_name = robotConfig.kinematic_chain.end_joint_name;
 
     // EE info
     const std::string &ee_frame_name = robotConfig.frame_names.ee;
@@ -440,15 +407,15 @@ RobotConfig robot_builder(const std::string &urdf_string, const RobotConfig& rob
         throw std::runtime_error("Robot URDF does not contain specified ee frame");
     }
 
-    // Get vector of joints between ee_frame and base_joint (inclusive)
+    // Get the joints in the kinematic chain, i.e. between end_joint and base_joint inclusive
     std::vector<urdf::JointConstSharedPtr> chain_list;
     const urdf::LinkConstSharedPtr root = model->getRoot();
-    urdf::JointConstSharedPtr current_joint = model->getLink(ee_frame_name)->parent_joint;
+    urdf::JointConstSharedPtr current_joint = model->getJoint(end_joint_name);
     
     while (current_joint)
     {
       // Insert at beginning (maintains order from base → ee)
-      chain_list.insert(chain_list.begin(), model->getJoint(current_joint->name));
+      chain_list.insert(chain_list.begin(), current_joint);
     
       // Stop once we’ve included the base joint
       if (current_joint->name == base_joint_name)
@@ -485,11 +452,11 @@ RobotConfig robot_builder(const std::string &urdf_string, const RobotConfig& rob
             JointData joint;
             if (joint_node->type == urdf::Joint::REVOLUTE || joint_node->type == urdf::Joint::CONTINUOUS)
             {
-                joint.screw_info.type = affordance_util::ROTATION;
+                joint.screw_info.type = affordance_util::ScrewType::ROTATION;
             }
             else if (joint_node->type == urdf::Joint::PRISMATIC)
             {
-                joint.screw_info.type = affordance_util::TRANSLATION;
+                joint.screw_info.type = affordance_util::ScrewType::TRANSLATION;
             }
             else
             {
@@ -557,15 +524,15 @@ RobotConfig extract_info_for_urdf_robot_builder(const std::string &config_file_p
                                                                                    // one reference frame
 
     // Parse base joint name
-    const YAML::Node &robotJointsNode = config["robot_joints"];
-    const YAML::Node &baseJointNode = robotJointsNode[0];
-    const std::string &base_joint_name = baseJointNode["name"].as<std::string>();
+    const YAML::Node &kinematicChainNode = config["kinematic_chain"];
+    const std::string &base_joint_name = kinematicChainNode[0]["base_joint_name"].as<std::string>();
+    const std::string &end_joint_name = kinematicChainNode[0]["end_joint_name"].as<std::string>();
 
 
     // Access EE info
     const YAML::Node &ee_node = config["end_effector"];
-    const std::string gripper_joint_name = ee_node[0]["gripper_joint_name"].as<std::string>();
     const std::string ee_frame_name = ee_node[0]["frame_name"].as<std::string>();
+    const std::string gripper_joint_name = ee_node[0]["gripper_joint_name"].as<std::string>();
 
     // Access tool info
     const YAML::Node &tool_node = config["tool"];
@@ -576,12 +543,13 @@ RobotConfig extract_info_for_urdf_robot_builder(const std::string &config_file_p
     // Reference frame name
     robotConfig.frame_names.ref = ref_frame_name;
 
-    // Base joint name
-    robotConfig.joint_names.robot.push_back(base_joint_name);
+    // Kinematic chain info
+    robotConfig.kinematic_chain.base_joint_name = base_joint_name;
+    robotConfig.kinematic_chain.end_joint_name = end_joint_name;
 
     // EE frame name
-    robotConfig.joint_names.gripper = gripper_joint_name;
     robotConfig.frame_names.ee = ee_frame_name;
+    robotConfig.joint_names.gripper = gripper_joint_name;
 
     // Tool info
     robotConfig.frame_names.tool = tool_frame_name;
@@ -904,6 +872,80 @@ std::vector<Eigen::Matrix4d> compute_se3_screw_trajectory(const ScrewInfo& si, d
   }
 
   return T_path;
+}
+
+Eigen::Vector3d axis_to_vec(const affordance_util::Axis& axis)
+{
+    switch (axis)
+    {
+    case Axis::X:        return Eigen::Vector3d::UnitX();
+    case Axis::Y:        return Eigen::Vector3d::UnitY();
+    case Axis::Z:        return Eigen::Vector3d::UnitZ();
+    case Axis::X_MINUS:  return -1.0 * Eigen::Vector3d::UnitX();
+    case Axis::Y_MINUS:  return -1.0 * Eigen::Vector3d::UnitY();
+    case Axis::Z_MINUS:  return -1.0 * Eigen::Vector3d::UnitZ();
+    case Axis::ORIGIN:   return Eigen::Vector3d::Zero();
+    default:
+        throw std::runtime_error("Axis::MANUAL or unknown value has no predefined direction. Use a custom vector.");
+    }
+}
+
+affordance_util::VecInfo get_affordance_info_from_fk(const affordance_util::ScrewInfoFrom& affordance_info_from, const affordance_util::RobotDescription& robot_description){
+
+   if (affordance_info_from.method!=affordance_util::PoseSpecificationMethod::FROM_FK){
+       throw std::runtime_error("Cannot get affordance info from FK if the 'method' field is not 'FROM_FK'");
+   }
+
+   // Function output
+   affordance_util::VecInfo affordance_info_from_fk;
+
+   // Compute forward kinematics
+   const Eigen::Matrix4d T_ref_to_fk =
+       FKinSpace(robot_description.M, robot_description.slist, robot_description.joint_states);
+
+   // Apply post-transform
+   const Eigen::Isometry3d T_ref_to_aff = Eigen::Isometry3d(T_ref_to_fk * affordance_info_from.post_transform);
+
+   // Extract translation from the transform
+   affordance_info_from_fk.location = T_ref_to_aff.translation();	
+
+   // Compute what the specified axis would be in the reference frame
+   if (!affordance_info_from.axis_in_final_pose.hasNaN()){
+       affordance_info_from_fk.axis = T_ref_to_aff.linear() * affordance_info_from.axis_in_final_pose;
+   }
+
+   return affordance_info_from_fk;
+
+}
+
+Eigen::Matrix4d get_pose_from_fk(const affordance_util::PoseFrom& pose_from, const affordance_util::RobotDescription& robot_description){
+
+    if (pose_from.method != affordance_util::PoseSpecificationMethod::FROM_FK) {
+        throw std::runtime_error("Cannot get pose from FK if the 'method' field is not 'FROM_FK'");
+    }
+
+   // Compute forward kinematics
+   const Eigen::Matrix4d T_ref_to_fk =
+       FKinSpace(robot_description.M, robot_description.slist, robot_description.joint_states);
+
+   // Apply post-transform
+   const Eigen::Matrix4d T_ref_to_final = T_ref_to_fk * pose_from.post_transform;
+
+   return T_ref_to_final;
+}
+
+Eigen::MatrixXd clamp_to_magnitude_minimum(const Eigen::MatrixXd& mat, double min_magnitude) {
+
+    // Get sign of each component
+    Eigen::MatrixXd signs = mat.cwiseSign();
+    signs = (signs.array() == 0.0).select(1.0, signs); // Treat zeros as positive
+
+    // Get magnitudes and clamp to minimum
+    Eigen::MatrixXd magnitudes = mat.cwiseAbs();
+    magnitudes = magnitudes.cwiseMax(min_magnitude);
+
+    // Return with signs preserved
+    return signs.cwiseProduct(magnitudes);
 }
 
 } // namespace affordance_util

@@ -1,45 +1,8 @@
+#include <affordance_util/affordance_util.hpp>
 #include <cc_affordance_planner/cc_affordance_planner_interface.hpp>
 
 namespace cc_affordance_planner
 {
-
-TaskDescription::TaskDescription(const PlanningType &planningType)
-{
-
-    if (planningType == PlanningType::EE_ORIENTATION_ONLY)
-    {
-        // Model Setting -- EE_ORIENTATION_ONLY is simply a special case of the AFFORDANCE motion
-        motion_type = cc_affordance_planner::MotionType::AFFORDANCE;
-        vir_screw_order = affordance_util::VirtualScrewOrder::NONE;
-
-        // Affordance Info
-        affordance_info.type = affordance_util::ScrewType::ROTATION;
-        affordance_info.location_method = affordance_util::ScrewLocationMethod::FROM_FK;
-    }
-    else if (planningType == PlanningType::CARTESIAN_GOAL)
-    {
-        // Model Setting -- CARTESIAN_GOAL is simply a special case of the APPROACH motion
-        motion_type = cc_affordance_planner::MotionType::APPROACH;
-        vir_screw_order = affordance_util::VirtualScrewOrder::NONE;
-
-        // Affordance Info
-        affordance_info.type = affordance_util::ScrewType::ROTATION;
-        affordance_info.location_method = affordance_util::ScrewLocationMethod::FROM_FK;
-
-        // The cartesian goal is simply the affordance reference pose i.e. a pose at which the affordance is zero for
-        // the APPROACH motion. Doesn't matter what affordance we chose since at its zero, the affordance has not caused
-        // any transformation yet.
-        affordance_info.axis = Eigen::Vector3d(0.707107, -0.408248, 0.577350); // A random axis
-        goal.affordance = 1e-7;                                                // an epsilon
-    }
-    else if (planningType == PlanningType::APPROACH)
-    {
-        // Model Setting -- Set to common use-case default values
-        motion_type = cc_affordance_planner::MotionType::APPROACH;
-        vir_screw_order = affordance_util::VirtualScrewOrder::NONE; // Constrain the EE orientation to what's dictated
-                                                                    // by the approach path
-    }
-}
 
 CcAffordancePlannerInterface::CcAffordancePlannerInterface()
     : ccAffordancePlannerInverse_(), ccAffordancePlannerTranspose_()
@@ -73,10 +36,10 @@ CcAffordancePlannerInterface::CcAffordancePlannerInterface(const PlannerConfig &
             "Planner config: 'closure_err_threshold_lin' cannot be unrealistically small, i.e. less than 1e-10.");
     }
 
-    if ((planner_config.ik_max_itr < 2) || (planner_config.accuracy > 10000))
+    if ((planner_config.ik_max_itr < 2) || (planner_config.ik_max_itr > 100000))
     {
 
-        throw std::invalid_argument("Planner config: 'ik_max_itr' must be in the range [2, 10000]");
+        throw std::invalid_argument("Planner config: 'ik_max_itr' must be in the range [2, 100000]");
     }
 }
 
@@ -91,7 +54,17 @@ PlannerResult CcAffordancePlannerInterface::generate_joint_trajectory(
     PlannerResult plannerResult;
 
     // Extract task description
-    const affordance_util::ScrewInfo aff = task_description.affordance_info;
+    // Affordance info -- handle if asked to get from FK
+    affordance_util::ScrewInfo aff = task_description.affordance_info;
+    if (task_description.affordance_info_from.method==affordance_util::PoseSpecificationMethod::FROM_FK){
+	const affordance_util::VecInfo vec_info = affordance_util::get_affordance_info_from_fk(task_description.affordance_info_from, robot_description);
+        aff.location = vec_info.location;
+        // If available, use axis info from FK. If it is not set, it means it was provided in affordance_info and we keep that.
+        if (!vec_info.axis.hasNaN()){
+	    aff.axis = vec_info.axis;
+	} 
+    }
+
     const affordance_util::VirtualScrewOrder vir_screw_order = task_description.vir_screw_order;
 
     // Compute the nof secondary joints
@@ -100,14 +73,21 @@ PlannerResult CcAffordancePlannerInterface::generate_joint_trajectory(
     // TODO: Remove the need to pass nof_secondary_joints to the planner and get it directly from the size of the
     // theta_sdf vector.
 
+    // Extract additional task description
+    Eigen::Matrix4d canonical_pose;
     if (task_description.motion_type == MotionType::APPROACH)
     {
-        // Extract additional task description
-        const Eigen::Matrix4d grasp_pose = task_description.goal.grasp_pose;
+        // Canonical pose -- handle if asked to get from FK
+        if (task_description.canonical_pose_from.method==affordance_util::PoseSpecificationMethod::FROM_FK){
+            canonical_pose = affordance_util::get_pose_from_fk(task_description.canonical_pose_from, robot_description);
+        }
+        else {
+            canonical_pose = task_description.goal.canonical_pose;
+        }
 
         // Compose the closed-chain model screws and determine the limit for the approach screw
         const affordance_util::CcModel cc_model =
-            affordance_util::compose_cc_model_slist(robot_description, aff, grasp_pose, vir_screw_order);
+            affordance_util::compose_cc_model_slist(robot_description, aff, canonical_pose, vir_screw_order);
 
         // Extract and construct the secondary joint goals
         nof_secondary_joints += 1; // add approach joint
@@ -161,6 +141,12 @@ PlannerResult CcAffordancePlannerInterface::generate_joint_trajectory(
         plannerResult.joint_trajectory, robot_description.joint_states,
         gripper_joint_trajectory); // Will insert gripper_joint_trajectory if task description included a gripper goal
 
+    // Record the task description used for planning
+    plannerResult.task_description = task_description;
+    plannerResult.task_description.affordance_info = aff; // Update affordance info if obtained from FK
+    plannerResult.task_description.goal.canonical_pose = canonical_pose; // Update canonical pose if obtained from FK
+
+    // Return the result
     return plannerResult;
 }
 
@@ -219,7 +205,7 @@ PlannerResult CcAffordancePlannerInterface::generate_specified_motion_joint_traj
             slist, secondary_joint_goals, nof_secondary_joints, trajectory_density, st);
         {
             std::unique_lock<std::mutex> lock(mtx);
-            inverseResult.update_method = UpdateMethod::TRANSPOSE;
+            transposeResult.update_method = UpdateMethod::TRANSPOSE;
             transposeResult.update_trail += "transpose";
             transpose_result_obtained = true;
         }
@@ -357,10 +343,25 @@ void CcAffordancePlannerInterface::validate_input_(const affordance_util::RobotD
         throw std::invalid_argument("Robot description: 'M' (palm HTM) must be specified.");
     }
 
-    double tolerance = 1e-4;
-    if (((!robot_description.M.block<3, 3>(0, 0).isUnitary(tolerance)) ||
-         (std::abs(robot_description.M(3, 3) - 1.0) > tolerance) ||
-         (!robot_description.M.row(3).head(3).isZero(tolerance))))
+    // Lambda to check if a matrix is a valid homogeneous transformation matrix
+    const double tolerance = 1e-4;
+    auto is_valid_htm = [tolerance](const Eigen::Matrix4d& T) -> bool {
+        const Eigen::Matrix3d R = T.block<3,3>(0,0);
+        
+        // Check if R is a proper rotation matrix
+        bool valid_rotation = 
+            R.isUnitary(tolerance) &&  // R^T * R = I
+            (std::abs(R.determinant() - 1.0) < tolerance);  // det(R) = +1
+        
+        // Check if bottom row is [0, 0, 0, 1]
+        bool valid_bottom = 
+            T.row(3).head(3).isZero(tolerance) &&
+            (std::abs(T(3,3) - 1.0) < tolerance);
+        
+        return valid_rotation && valid_bottom;
+    };
+
+    if (!is_valid_htm(robot_description.M))
     {
         throw std::invalid_argument("Robot description: 'M' is not a valid transformation matrix.");
     }
@@ -388,19 +389,19 @@ void CcAffordancePlannerInterface::validate_input_(const affordance_util::RobotD
         throw std::invalid_argument("Task description: 'affordance_info.type' must be specified.");
     }
 
-    if (task_description.affordance_info.location_method != affordance_util::ScrewLocationMethod::FROM_FK &&
-        (task_description.affordance_info.axis.hasNaN() ||
-         task_description.affordance_info.location.hasNaN() && task_description.affordance_info.screw.hasNaN()))
+    if (task_description.affordance_info_from.method != affordance_util::PoseSpecificationMethod::FROM_FK &&
+        ((task_description.affordance_info.axis.hasNaN() ||
+         task_description.affordance_info.location.hasNaN()) && task_description.affordance_info.screw.hasNaN()))
     {
         throw std::invalid_argument("Task description: Either 'affordance_info.axis' and 'affordance_info.location', "
                                     "or 'affordance_info.screw' must be specified.");
     }
 
-    if (task_description.affordance_info.location_method == affordance_util::ScrewLocationMethod::FROM_FK &&
-        (task_description.affordance_info.axis.hasNaN() && task_description.affordance_info.screw.hasNaN()))
+    if (task_description.affordance_info_from.method == affordance_util::PoseSpecificationMethod::FROM_FK &&
+        (task_description.affordance_info.axis.hasNaN() && task_description.affordance_info_from.axis_in_final_pose.hasNaN()))
     {
         throw std::invalid_argument(
-            "Task description: Either 'affordance_info.axis' or 'affordance_info.screw' must be specified.");
+            "Task description: For 'affordance_info_from.method = FROM_FK', either 'affordance_info.axis' or 'affordance_info_from.axis_in_final_pose' must be specified.");
     }
 
     if (task_description.affordance_info.type == affordance_util::ScrewType::SCREW &&
@@ -422,15 +423,11 @@ void CcAffordancePlannerInterface::validate_input_(const affordance_util::RobotD
         throw std::invalid_argument("Task description: 'goal.affordance' must be specified and cannot be NaN.");
     }
 
-    /* if ((task_description.motion_type == MotionType::APPROACH) && */
-    /*     ((!task_description.goal.grasp_pose.block<3, 3>(0, 0).isUnitary(tolerance)) || */
-    /*      (std::abs(task_description.goal.grasp_pose(3, 3) - 1.0) > tolerance) || */
-    /*      (!task_description.goal.grasp_pose.row(3).head(3).isZero(tolerance)))) */
-    /* { */
-    /*     throw std::invalid_argument("Task description: 'grasp_pose' is not a valid transformation matrix. Valid grasp
-     * " */
-    /*                                 "pose is needed for approach motion."); */
-    /* } */
+    if ((task_description.motion_type == MotionType::APPROACH) && (!is_valid_htm(task_description.goal.canonical_pose)))
+    {
+        throw std::invalid_argument("Task description: 'canonical_pose' is not a valid transformation matrix. "
+            "Valid canonical pose is needed for approach motion.");
+    }
 
     if (task_description.trajectory_density < 2)
     {
