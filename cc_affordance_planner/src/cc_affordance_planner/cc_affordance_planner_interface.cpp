@@ -87,7 +87,7 @@ PlannerResult CcAffordancePlannerInterface::generate_joint_trajectory(
 
         // Compose the closed-chain model screws and determine the limit for the approach screw
         const affordance_util::CcModel cc_model =
-            affordance_util::compose_cc_model_slist(robot_description, aff, canonical_pose, vir_screw_order);
+            affordance_util::compose_cc_model_slist(robot_description, aff, canonical_pose, task_description.approach_gamma, vir_screw_order);
 
         // Extract and construct the secondary joint goals
         nof_secondary_joints += 1; // add approach joint

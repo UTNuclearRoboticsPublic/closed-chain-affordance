@@ -96,6 +96,7 @@ struct TaskDescription
     affordance_util::ScrewInfo affordance_info;
     Goal goal;
     int trajectory_density = 10;
+    double approach_gamma = 1.0; // m/rad, weighs rotational motion relative to translational motion along the approach trajectory
     MotionType motion_type = MotionType::AFFORDANCE;
     affordance_util::VirtualScrewOrder vir_screw_order = affordance_util::VirtualScrewOrder::XYZ;
     affordance_util::GripperGoalType gripper_goal_type = affordance_util::GripperGoalType::CONSTANT;
