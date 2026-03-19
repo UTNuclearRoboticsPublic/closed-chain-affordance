@@ -293,13 +293,15 @@ std::vector<double> compute_gripper_joint_trajectory(const GripperGoalType &grip
  * robot palm homogeneous transformation matrix, and current joint states
  * @param aff ScrewInfo containing information about affordance
  * @param approach_end_pose Eigen::MatrixXd representing the approach motion end pose HTM
+ * @param approach_gamma double specifying the weight of the rotational motion relative to the translational motion along the approach trajectory.
+ * Default is 1.0, i.e. rotational and translational motion are weighted equally.
  * @param vir_screw_order affordance_util::VirtualScrewOrder indicating the order for the virtual EE screws. Possible
  * values are "xyz", "yzx" "zxy", and "none". Default is "xyz"
  *
  * @return affordance_util::CcModel containing the closed-chain affordance screws and approach limit.
  */
 CcModel compose_cc_model_slist(const RobotDescription &robot_description, const ScrewInfo &aff_info,
-                               const Eigen::MatrixXd &approach_end_pose,
+                               const Eigen::MatrixXd &approach_end_pose, const double approach_gamma = 1.0,
                                const VirtualScrewOrder &vir_screw_order = VirtualScrewOrder::XYZ);
 /**
  * @brief Given a robot description, affordance information, and order of virtual screws, returns the closed-chain
