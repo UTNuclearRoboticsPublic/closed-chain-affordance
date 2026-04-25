@@ -3,31 +3,6 @@
 //      Project   : affordance_util
 //      Created   : Fall 2023
 //      Author    : Janak Panthi (Crasun Jans)
-//      Copyright : Copyright© The University of Texas at Austin, 2014-2026. All
-//      rights reserved.
-//
-//          All files within this directory are subject to the following, unless
-//          an alternative license is explicitly included within the text of
-//          each file.
-//
-//          This software and documentation constitute an unpublished work
-//          and contain valuable trade secrets and proprietary information
-//          belonging to the University. None of the foregoing material may be
-//          copied or duplicated or disclosed without the express, written
-//          permission of the University. THE UNIVERSITY EXPRESSLY DISCLAIMS ANY
-//          AND ALL WARRANTIES CONCERNING THIS SOFTWARE AND DOCUMENTATION,
-//          INCLUDING ANY WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A
-//          PARTICULAR PURPOSE, AND WARRANTIES OF PERFORMANCE, AND ANY WARRANTY
-//          THAT MIGHT OTHERWISE ARISE FROM COURSE OF DEALING OR USAGE OF TRADE.
-//          NO WARRANTY IS EITHER EXPRESS OR IMPLIED WITH RESPECT TO THE USE OF
-//          THE SOFTWARE OR DOCUMENTATION. Under no circumstances shall the
-//          University be liable for incidental, special, indirect, direct or
-//          consequential damages or loss of profits, interruption of business,
-//          or related expenses which may arise from use of software or
-//          documentation, including but not limited to those resulting from
-//          defects in software and/or documentation, or loss or inaccuracy of
-//          data of any kind.
-//
 ///////////////////////////////////////////////////////////////////////////////
 /*
    Credits: Some functions are translated to Cpp from Kevin Lynch's Modern
@@ -293,13 +268,15 @@ std::vector<double> compute_gripper_joint_trajectory(const GripperGoalType &grip
  * robot palm homogeneous transformation matrix, and current joint states
  * @param aff ScrewInfo containing information about affordance
  * @param approach_end_pose Eigen::MatrixXd representing the approach motion end pose HTM
+ * @param approach_gamma double specifying the weight of the rotational motion relative to the translational motion along the approach trajectory.
+ * Default is 1.0, i.e. rotational and translational motion are weighted equally.
  * @param vir_screw_order affordance_util::VirtualScrewOrder indicating the order for the virtual EE screws. Possible
  * values are "xyz", "yzx" "zxy", and "none". Default is "xyz"
  *
  * @return affordance_util::CcModel containing the closed-chain affordance screws and approach limit.
  */
 CcModel compose_cc_model_slist(const RobotDescription &robot_description, const ScrewInfo &aff_info,
-                               const Eigen::MatrixXd &approach_end_pose,
+                               const Eigen::MatrixXd &approach_end_pose, const double approach_gamma = 1.0,
                                const VirtualScrewOrder &vir_screw_order = VirtualScrewOrder::XYZ);
 /**
  * @brief Given a robot description, affordance information, and order of virtual screws, returns the closed-chain

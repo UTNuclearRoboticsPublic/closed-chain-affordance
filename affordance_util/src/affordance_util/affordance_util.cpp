@@ -63,14 +63,14 @@ std::vector<double> compute_gripper_joint_trajectory(const GripperGoalType &grip
 }
 
 CcModel compose_cc_model_slist(const RobotDescription &robot_description, const ScrewInfo &aff_info,
-                               const Eigen::MatrixXd &approach_end_pose, const VirtualScrewOrder &vir_screw_order)
+                               const Eigen::MatrixXd &approach_end_pose, const double approach_gamma, const VirtualScrewOrder &vir_screw_order)
 {
     CcModel cc_model; // Output of the function
 
     // Compute robot Jacobian
     const Eigen::MatrixXd robot_jacobian = JacobianSpace(robot_description.slist, robot_description.joint_states);
 
-    // Compute approach screw
+    // Compute approach twist
     const Eigen::Matrix4d approach_start_pose =
         FKinSpace(robot_description.M, robot_description.slist, robot_description.joint_states);
     const Eigen::Vector3d ee_location = approach_start_pose.block<3, 1>(0, 3); // Translation part of the HTM
@@ -78,10 +78,24 @@ CcModel compose_cc_model_slist(const RobotDescription &robot_description, const 
         affordance_util::Adjoint(approach_start_pose) *
         affordance_util::se3ToVec(
             affordance_util::MatrixLog6(affordance_util::TransInv(approach_start_pose) * approach_end_pose));
-    const Eigen::Matrix<double, 6, 1> approach_screw = approach_twist / approach_twist.norm();
+
+    // Compute approach magnitude
+    const Eigen::Vector3d approach_twist_w = approach_twist.head<3>();
+    const Eigen::Vector3d approach_twist_v = approach_twist.tail<3>();
+    double approach_magnitude = std::sqrt(approach_gamma * approach_gamma * approach_twist_w.squaredNorm() + approach_twist_v.squaredNorm());
+
+    // Compute approach screw -- avoid division by zero
+    Eigen::Matrix<double, 6, 1> approach_screw;
+    const double epsilon = 1e-6; // Threshold for considering approach magnitude to be effectively zero
+    if (approach_magnitude < epsilon) {
+        approach_magnitude = 0.0; // Set approach magnitude to exactly zero to avoid numerical issues
+        approach_screw << 0, 0, 1, 0, 0, 0; // Default screw (arbitrary, only used when motion magnitude is zero)
+    } else {
+        approach_screw = approach_twist / approach_magnitude;
+    }
 
     // Fill out the approach limit
-    cc_model.approach_limit = approach_twist.norm();
+    cc_model.approach_limit = approach_magnitude;
 
     // If aff info says to extract location from FK, do that
     ScrewInfo aff = aff_info;
