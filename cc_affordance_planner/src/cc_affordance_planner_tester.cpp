@@ -4,7 +4,7 @@
 #include <cc_affordance_planner/cc_affordance_planner.hpp>
 #include <cc_affordance_planner/cc_affordance_planner_interface.hpp>
 #include <iomanip>
-
+#include <iostream>
 // This tester includes hardcoded UR5 robot info to test the CC Affordance
 // planner
 /*
